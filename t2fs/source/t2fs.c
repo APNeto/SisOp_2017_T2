@@ -12,13 +12,15 @@ int fscriado = 0;
 char[55] filename;
 
 int inicializa(){
-  FILE *disco = fopen("../t2fs.dat", "rw");
+  //FILE *disco = fopen("../t2fs.dat", "rw");
 
+  char[SECTOR_SIZE] buffer;
+  read_sector (0, buffer);
   /*
 
   Creio que tenhamos que ler as infos abaixo do t2fs.dat
-  SUPER.id
-  SUPER.versio
+  SUPER.id = buffer[];
+  SUPER.version
   SUPER.SuperBlockSize
   SUPER.DiskSize
   SUPER.NofSectors
@@ -27,6 +29,16 @@ int inicializa(){
   SUPER.RootDirCluster
   SUPER.DataSectorStart
   */
+
+  memcpy(SUPER.id, buffer, size_t 4);
+  memcpy(SUPER.version, buffer+4, size_t 2);
+  memcpy(SUPER.SuperBlockSize, buffer+6, size_t 2);
+  memcpy(SUPER.DiskSize, buffer+8, size_t 4);
+  memcpy(SUPER.NofSectors, buffer+12, size_t 4);
+  memcpy(SUPER.SectorsPerCluster, buffer+16, size_t 4);
+  memcpy(SUPER.pFATSectorStart, buffer+20, size_t 4);
+  memcpy(SUPER.RootDirCluster, buffer+24, size_t 4);
+  memcpy(SUPER.DataSectorStart, buffer+28, size_t 4);
   return ERRO;
 };
 
@@ -77,7 +89,7 @@ FILE2 open2 (char *filename){
   // localiza entrada se absoluto, salvando a localização atual, para voltar depois
   // ve se arquivo existe no diretorio especificado
 
-  
+
   return ERRO;
 }
 
