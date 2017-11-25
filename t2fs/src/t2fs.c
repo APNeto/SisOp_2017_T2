@@ -127,6 +127,7 @@ FILE2 create2 (char *filename){
   // nome do arquivo eh maior que o permitido
   // MAX_FILE_NAME_SIZE definido no arquivo t2fs.h
   char *FILENAME = (char*) malloc(filenamesize);
+  strcpy(FILENAME, filename);
   //if(filenamesize > MAX_FILE_NAME_SIZE) return ERRO;
   //strcpy(FILENAME, filename);
 
@@ -167,10 +168,46 @@ int delete2 (char *filename){
 }
 
 FILE2 open2 (char *filename){
+  int i;
   if(!fscriado) {
     inicializa();
     fscriado = 1;
   }
+
+  // se ponteiro filename eh null ou \0
+  if(!filename) return ERRO;
+  // cria arquivo em dir atual
+  if(filename[0] != '/'){
+
+  };
+// else, cria em caminho absoluto especificado
+
+  int filenamesize = strlen(filename);
+  // nome do arquivo eh maior que o permitido
+  // MAX_FILE_NAME_SIZE definido no arquivo t2fs.h
+  char *FILENAME = (char*) malloc(filenamesize);
+  strcpy(FILENAME, filename);
+  //if(filenamesize > MAX_FILE_NAME_SIZE) return ERRO;
+  //strcpy(FILENAME, filename);
+
+  tokens = str_split(FILENAME, '/');
+  // localiza diretorio para criar
+  /// corrigir para nao ler nome do arquivo a ser criado
+  RC *tmpDir = ROOT;
+  for(i=0; *(tokens + i); i++){
+      tmpDir = get_RC_in_DIR(tmpDir, (tokens + i))
+      if(tmpDir == NULL) return ERRO; // n existe subdiretorio com nome token atual em dir tmpDir
+  }
+
+  // recupera cluster de tmpDir mais filho na hierarquia
+  tmpDir = &(tmpDir->firstCluster * SectorsPerCluster + SUPER.DataSectorStart);
+  // acha entrada válida no diretório
+  RC *arq = acha_valido(tmpDir);
+  strcpy(arq->name, nomearquivo);
+  arq->bytesFileSize = CLUSTER_SIZE;
+  arq->fistCluster = achaFat();
+  //if(achaFat()) return ERRO; // nao ha mais CLUSTER livre para arquivo
+  return SUCESSO;
 
   // localiza entrada se absoluto, salvando a localização atual, para voltar depois
   // ve se arquivo existe no diretorio especificado
@@ -192,6 +229,7 @@ int read2 (FILE2 handle, char *buffer, int size){
     inicializa();
     fscriado = 1;
   }
+
   return ERRO;
 }
 
@@ -256,6 +294,8 @@ DIR2 opendir2 (char *pathname){
     inicializa();
     fscriado = 1;
   }
+
+
 
   return ERRO;
 }
