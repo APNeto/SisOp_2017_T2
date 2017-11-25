@@ -6,15 +6,18 @@
 #define SUCESSO 0;
 #define ERRO -1;
 typedef struct t2fs_superbloco SB;
-typedef struct t2fs_record RT;
+typedef struct t2fs_record RC;
 
 int SectorsPerCluster;
 
-SB SUPER[SECTOR_SIZE];
+SB SUPER;
+RC *ROOT; // ROOT é um conjunto de records, ou seja, um diretorio. Aponta para primeiro record do diretorio
 
+int CLUSTER_SIZE;
+int RecsPerCluster;
 int fscriado = 0;
 char FILENAME[MAX_FILE_NAME_SIZE];
-char PATH[MAX_FILE_NAME_SIZE];
+char PATH[MAX_FILE_NAME_SIZE]; // str auxiliar para percorrer nomes de arquivos
 
 
 
@@ -28,11 +31,24 @@ int read_cluster(int pos, *buffer){
 };
 
 int inicializa(){
-  if(!read_sector(0, SUPER)) return ERRO;
+  char buffer[SECTOR_SIZE];
+  if(!read_sector(0, buffer)) return ERRO;
+  memcpy(SUPER.id, buffer, size_t 4);
+  memcpy(SUPER.version, buffer+4, size_t 2);
+  memcpy(SUPER.SuperBlockSize, buffer+6, size_t 2);
+  memcpy(SUPER.DiskSize, buffer+8, size_t 4);
+  memcpy(SUPER.NofSectors, buffer+12, size_t 4);
+  memcpy(SUPER.SectorsPerCluster, buffer+16, size_t 4);
+  memcpy(SUPER.pFATSectorStart, buffer+20, size_t 4);
+  memcpy(SUPER.RootDirCluster, buffer+24, size_t 4);
+  memcpy(SUPER.DataSectorStart, buffer+28, size_t 4);
 
-  SectorsPerCluster = *(SUPER+16);
-  int root_local = SUPER+24;
-  memcpy(&ROOT, SUPER+24, sizeof(ROOT));
+  SectorsPerCluster = SUPER.SectorsPerCluster;
+  CLUSTER_SIZE = SECTOR_SIZE * SectorsPerCluster;
+  RecsPerCluster = SectorsPerCluster * 4; // cabem 4 records por setor
+  ROOT = (RC*) malloc(CLUSTER_SIZE);
+  if(!read_cluster(SUPER.RootDirCluster*SectorsPerCluster + SUPER.DataSectorStart, ROOT)) return ERRO;
+  //memcpy(&ROOT + SUPER.DataSectorStart, SUPER+24, sizeof(ROOT));
 
   return ERRO;
 };
@@ -96,7 +112,6 @@ int identify2 (char *name, int size){
 }
 
 
-_
 FILE2 create2 (char *filename){
   int i;
   if(!fscriado) {
@@ -106,21 +121,40 @@ FILE2 create2 (char *filename){
 
   // se ponteiro filename eh null ou \0
   if(!filename) return ERRO;
-  if(filename[0] != '\\') return ERRO;
+  if(filename[0] != '/') return ERRO;
 
-  int filenamesize = strlen(filename.name);
+  int filenamesize = strlen(filename);
   // nome do arquivo eh maior que o permitido
   // MAX_FILE_NAME_SIZE definido no arquivo t2fs.h
-  if(filenamesize > MAX_FILE_NAME_SIZE) return ERRO;
-  strcpy(FILENAME, filename);
+  char *FILENAME = (char*) malloc(filenamesize);
+  //if(filenamesize > MAX_FILE_NAME_SIZE) return ERRO;
+  //strcpy(FILENAME, filename);
 
-  tokens = str_split(FILENAME, '\\');
+  tokens = str_split(FILENAME, '/');
   // localiza diretorio para criar
-  // corrigir para nao ler nome do arquivo a ser criado
+  /// corrigir para nao ler nome do arquivo a ser criado
+  RC *tmpDir = ROOT;
   for(i=0; *(tokens + i); i++){
-      *(tokens + i);
+      tmpDir = get_RC_in_DIR(tmpDir, (tokens + i))
+      if(tmpDir == NULL) return ERRO; // n existe subdiretorio com nome token atual em dir tmpDir
   }
 
+  // recupera cluster de tmpDir mais filho na hierarquia
+  tmpDir = &(tmpDir->firstCluster * SectorsPerCluster + SUPER.DataSectorStart);
+  // acha entrada válida no diretório
+  RC *arq = acha_valido(tmpDir);
+  strcpy(arq->name, nomearquivo);
+  arq->bytesFileSize = CLUSTER_SIZE;
+  arq->fistCluster = achaFat();
+  //if(achaFat()) return ERRO; // nao ha mais CLUSTER livre para arquivo
+  return SUCESSO;
+}
+
+*RC get_RC_in_DIR (RC* dir, *filename){
+  int i;
+  for(i = 0; i < RecsPerCluster; i++){
+    if(strcmp( &((dir + i*sizeof(RC))->name), filename) == 0) return &(dir + i*sizeof(RC));
+  }
   return ERRO;
 }
 
@@ -231,6 +265,16 @@ int readdir2 (DIR2 handle, DIRENT2 *dentry){
     inicializa();
     fscriado = 1;
   }
+
+/// aqui vai o handle?
+  RC *record = get_RC_in_DIR();
+  if(record != NULL) {
+    strcpy(&(dentry->name), &(records->name));
+    dentry->fileType = record->TypeVal;
+    dentry->fileSize = record->bytesFileSize;
+    return SUCESSO;
+  }
+
   return ERRO;
 }
 
