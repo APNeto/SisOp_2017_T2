@@ -12,6 +12,7 @@ int SectorsPerCluster;
 
 SB SUPER;
 RC *ROOT; // ROOT é um conjunto de records, ou seja, um diretorio. Aponta para primeiro record do diretorio
+RC *CURRENT_DIR;
 
 int CLUSTER_SIZE;
 int RecsPerCluster;
@@ -47,6 +48,7 @@ int inicializa(){
   CLUSTER_SIZE = SECTOR_SIZE * SectorsPerCluster;
   RecsPerCluster = SectorsPerCluster * 4; // cabem 4 records por setor
   ROOT = (RC*) malloc(CLUSTER_SIZE);
+  CURRENT_DIR = ROOT;
   if(!read_cluster(SUPER.RootDirCluster*SectorsPerCluster + SUPER.DataSectorStart, ROOT)) return ERRO;
   //memcpy(&ROOT + SUPER.DataSectorStart, SUPER+24, sizeof(ROOT));
 
@@ -102,6 +104,14 @@ char** str_split(char* a_str, const char a_delim)
     return result;
 }
 
+RC* novoRC(RC* Dir_ptr){
+  int i;
+  for(i = 0; i<RecsPerCluster; i++){
+    if(Dir_ptr .TypeVal == TYPEVAL_INVALIDO) return &();
+  }
+  return NULL;
+}
+
 ///////////////////////////////////// Funções abaixo
 int identify2 (char *name, int size){
   if(!fscriado) {
@@ -143,7 +153,7 @@ FILE2 create2 (char *filename){
   // recupera cluster de tmpDir mais filho na hierarquia
   tmpDir = &(tmpDir->firstCluster * SectorsPerCluster + SUPER.DataSectorStart);
   // acha entrada válida no diretório
-  RC *arq = acha_valido(tmpDir);
+  RC *arq = novoRC(tmpDir);
   strcpy(arq->name, nomearquivo);
   arq->bytesFileSize = CLUSTER_SIZE;
   arq->fistCluster = achaFat();
@@ -176,9 +186,9 @@ FILE2 open2 (char *filename){
 
   // se ponteiro filename eh null ou \0
   if(!filename) return ERRO;
-  // cria arquivo em dir atual
+  // abre arquivo em dir atual
   if(filename[0] != '/'){
-
+    RC*  = (CURRENT_DIR);
   };
 // else, cria em caminho absoluto especificado
 
