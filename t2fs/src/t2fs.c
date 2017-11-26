@@ -14,6 +14,7 @@ SB SUPER;
 RC *ROOT; // ROOT é um conjunto de records, ou seja, um diretorio. Aponta para primeiro record do diretorio
 RC *CURRENT_DIR;
 
+
 int CLUSTER_SIZE;
 int RecsPerCluster;
 int fscriado = 0;
@@ -21,7 +22,8 @@ char FILENAME[MAX_FILE_NAME_SIZE];
 char PATH[MAX_FILE_NAME_SIZE]; // str auxiliar para percorrer nomes de arquivos
 
 
-
+open_dirs
+open_files
 ///////////////////////////////// Auxiliares
 
 int read_cluster(int pos, *buffer){
@@ -112,6 +114,24 @@ RC* novoRC(RC* Dir_ptr){
   return NULL;
 }
 
+*RC get_RC_in_DIR (RC* dir, *filename){
+  int i;
+  for(i = 0; i < RecsPerCluster; i++){
+    if(strcmp( &((dir + i*sizeof(RC))->name), filename) == 0) return &(dir + i*sizeof(RC));
+  }
+  return NULL;
+}
+
+RC* get_next_dir(RC* dir, *filename){
+  RC* tmp;
+  tmp = get_RC_in_DIR(dir, filename);
+  if(tmp == NULL) return NULL;
+  tmp = &(tmp->firstCluster * SectorsPerCluster + SUPER.DataSectorStart);
+  return tmp;
+}
+
+
+
 ///////////////////////////////////// Funções abaixo
 int identify2 (char *name, int size){
   if(!fscriado) {
@@ -161,14 +181,6 @@ FILE2 create2 (char *filename){
   return SUCESSO;
 }
 
-*RC get_RC_in_DIR (RC* dir, *filename){
-  int i;
-  for(i = 0; i < RecsPerCluster; i++){
-    if(strcmp( &((dir + i*sizeof(RC))->name), filename) == 0) return &(dir + i*sizeof(RC));
-  }
-  return ERRO;
-}
-
 int delete2 (char *filename){
   if(!fscriado) {
     inicializa();
@@ -188,7 +200,11 @@ FILE2 open2 (char *filename){
   if(!filename) return ERRO;
   // abre arquivo em dir atual
   if(filename[0] != '/'){
-    RC*  = (CURRENT_DIR);
+    for(i=0; i<RecsPerCluster; i++){
+      int res = strcmp(CURRENT_DIR+i*sizeof(RC))->name, filename);
+      if(res == 0) break;
+    }
+    if(res != 0) return ERRO;
   };
 // else, cria em caminho absoluto especificado
 
@@ -300,13 +316,33 @@ int getcwd2 (char *pathname, int size){
 }
 
 DIR2 opendir2 (char *pathname){
+  char **tokens;
+  RC *tmpDir;
+  int i;
+  char buffer[CLUSTER_SIZE];
+  char *FILENAME = (char*) malloc(strlen(pathname));
+
   if(!fscriado) {
     inicializa();
     fscriado = 1;
   }
 
+  if(pathname[0] == '/'){ // caminho absoluto
+    tmpDir = ROOT;
+  }
+  else{ // caminho relativo
+    tmpDir = CURRENT_DIR;
+  }
+  strcpy(FILENAME, pathname);
+  tokens = str_split(FILENAME, '/');
 
+  for(i = 0; *(tokens + i); i++){
+    tmpDir = get_next_dir(tmpDir, *(tokens + i));
+    if(tmpDir == NULL) return ERRO;
+  }
 
+  // colocar handle em lista de diretorios abertos
+  return handle;
   return ERRO;
 }
 
@@ -333,5 +369,10 @@ int closedir2 (DIR2 handle){
     inicializa();
     fscriado = 1;
   }
+
+  // handle em lista de diretorios abertos
+
+  if()
+  return SUCESSO;
   return ERRO;
 }
