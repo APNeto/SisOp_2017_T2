@@ -14,18 +14,20 @@ SB SUPER;
 RC *ROOT; // ROOT é um conjunto de records, ou seja, um diretorio. Aponta para primeiro record do diretorio
 RC *CURRENT_DIR;
 
-
+int num_dir_open = 0;
+int num_file_open = 0;
 int CLUSTER_SIZE;
 int RecsPerCluster;
 int fscriado = 0;
 char FILENAME[MAX_FILE_NAME_SIZE];
 char PATH[MAX_FILE_NAME_SIZE]; // str auxiliar para percorrer nomes de arquivos
 
-
-open_dirs
-open_files
 ///////////////////////////////// Auxiliares
 
+int alocateCluster(){
+
+  return ERRO;
+};
 int read_cluster(int pos, *buffer){
   for(int i = 0; i < SectorsPerCluster; i++){
     if(!read_sector(pos+i*SECTOR_SIZE, buffer+i*SECTOR_SIZE)) return ERRO;
@@ -206,7 +208,7 @@ FILE2 open2 (char *filename){
     }
     if(res != 0) return ERRO;
   };
-// else, cria em caminho absoluto especificado
+  // else, cria em caminho absoluto especificado
 
   int filenamesize = strlen(filename);
   // nome do arquivo eh maior que o permitido
@@ -284,18 +286,89 @@ int seek2 (FILE2 handle, unsigned int offset){
 }
 
 int mkdir2 (char *pathname){
+  char **tokens;
+  RC *tmpDir, *tmpPai;
+  int i, j;
+  int numCluster;
+  char buffer[CLUSTER_SIZE];
+  char *FILENAME = (char*) malloc(strlen(pathname));
+
   if(!fscriado) {
     inicializa();
     fscriado = 1;
   }
+
+  if(pathname == NULL || pathname[0] == '\0') return ERRO;
+  if(pathname[0] == '/'){ // caminho absoluto
+    tmpDir = ROOT;
+  }
+  else{ // caminho relativo
+    tmpDir = CURRENT_DIR;
+  }
+  strcpy(FILENAME, pathname);
+  tokens = str_split(FILENAME, '/');
+
+
+  // aqui há um +1 para criterio de parada parar no diretorio pai
+  for(i = 0; *(tokens + i + 1); i++){
+    paiDir = get_next_dir(tmpDir, *(tokens + i));
+    // pathname nao existe
+    if(paiDir == NULL || tmpDir->TypeVal != TYPEVAL_DIRETORIO) return ERRO;
+  }
+
+  // acha entrada nao ocupada
+  for(j = 0; j< RecsPerCluster; j++){
+    if( (tmpDir+j*64)->TypeVal == TYPEVAL_INVALIDO) break;
+  }
+  // se for acima foi todo percorrido sem achar entrada desocupada
+  if( (tmpDir+j*64)->TypeVal != TYPEVAL_INVALIDO) return ERRO;
+  numCluster = alocateCluster();
+  (tmpDir+j*64)->TypeVal = TYPEVAL_DIRETORIO;
+  strcpy( &((tmpDir+j*64)->name), *(tokens + i) );
+  (tmpDir+j*64)->bytesFileSize = CLUSTER_SIZE;
+  (tmpDir+j*64)->firstCluster = ;
+
   return ERRO;
 }
 
 int rmdir2 (char *pathname){
+  char **tokens;
+  RC *tmpDir, *tmpPai;
+  int i;
+  char buffer[CLUSTER_SIZE];
+  char *FILENAME = (char*) malloc(strlen(pathname));
+
   if(!fscriado) {
     inicializa();
     fscriado = 1;
   }
+
+  if(pathname == NULL || pathname[0] == '\0') return ERRO;
+  if(pathname[0] == '/'){ // caminho absoluto
+    tmpDir = ROOT;
+  }
+  else{ // caminho relativo
+    tmpDir = CURRENT_DIR;
+  }
+  strcpy(FILENAME, pathname);
+  tokens = str_split(FILENAME, '/');
+
+
+  // aqui há um +1 para criterio de parada parar no diretorio pai
+  for(i = 0; *(tokens + i + 1); i++){
+    paiDir = get_next_dir(tmpDir, *(tokens + i));
+    // pathname nao existe
+    if(paiDir == NULL || tmpDir->TypeVal != TYPEVAL_DIRETORIO) return ERRO;
+  }
+  // pega ultima string da sequencia do pathname
+  tmpDir = get_next_dir(paiDir, *(tokens + i));
+
+  // se diretorio nao vazio
+  for(i = 0; i< RecsPerCluster; i++){
+    if( (tmpDir+i*64)->TypeVal != TYPEVAL_INVALIDO) return ERRO;
+  }
+
+
   return ERRO;
 }
 
@@ -327,6 +400,7 @@ DIR2 opendir2 (char *pathname){
     fscriado = 1;
   }
 
+  if(pathname == NULL || pathname[0] == '\0') return ERRO;
   if(pathname[0] == '/'){ // caminho absoluto
     tmpDir = ROOT;
   }
@@ -342,6 +416,7 @@ DIR2 opendir2 (char *pathname){
   }
 
   // colocar handle em lista de diretorios abertos
+  num_dir_open++;
   return handle;
   return ERRO;
 }
@@ -351,11 +426,13 @@ int readdir2 (DIR2 handle, DIRENT2 *dentry){
     inicializa();
     fscriado = 1;
   }
+  if( 0 > handle || handle > open_dir_open) return ERRO;
 
-/// aqui vai o handle?
+  /// recuperar Record de handle
+  /// aqui vai o handle?
   RC *record = get_RC_in_DIR();
   if(record != NULL) {
-    strcpy(&(dentry->name), &(records->name));
+    strcpy(&(dentry->name), &(record->name));
     dentry->fileType = record->TypeVal;
     dentry->fileSize = record->bytesFileSize;
     return SUCESSO;
@@ -370,9 +447,10 @@ int closedir2 (DIR2 handle){
     fscriado = 1;
   }
 
+  // recuperar RC de handle?
   // handle em lista de diretorios abertos
 
-  if()
+  if(handle < 0) return ERRO;
   return SUCESSO;
   return ERRO;
 }
