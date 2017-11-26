@@ -13,7 +13,10 @@ int SectorsPerCluster;
 SB SUPER;
 RC *ROOT; // ROOT é um conjunto de records, ou seja, um diretorio. Aponta para primeiro record do diretorio
 RC *CURRENT_DIR;
+DWORD *FAT;
 
+int FATstart;
+int FATtotalSize;
 int num_dir_open = 0;
 int num_file_open = 0;
 int CLUSTER_SIZE;
@@ -24,10 +27,6 @@ char PATH[MAX_FILE_NAME_SIZE]; // str auxiliar para percorrer nomes de arquivos
 
 ///////////////////////////////// Auxiliares
 
-int alocateCluster(){
-
-  return ERRO;
-};
 int read_cluster(int pos, *buffer){
   for(int i = 0; i < SectorsPerCluster; i++){
     if(!read_sector(pos+i*SECTOR_SIZE, buffer+i*SECTOR_SIZE)) return ERRO;
@@ -36,6 +35,7 @@ int read_cluster(int pos, *buffer){
 };
 
 int inicializa(){
+  int i;
   char buffer[SECTOR_SIZE];
   if(!read_sector(0, buffer)) return ERRO;
   memcpy(SUPER.id, buffer, size_t 4);
@@ -50,15 +50,26 @@ int inicializa(){
 
   SectorsPerCluster = SUPER.SectorsPerCluster;
   CLUSTER_SIZE = SECTOR_SIZE * SectorsPerCluster;
-  RecsPerCluster = SectorsPerCluster * 4; // cabem 4 records por setor
+  RecsPerCluster = SectorsPerCluster * 4; // cabem 4 records por setor ou SECTOR_SIZE/sizeof(RC)
   ROOT = (RC*) malloc(CLUSTER_SIZE);
   CURRENT_DIR = ROOT;
-  if(!read_cluster(SUPER.RootDirCluster*SectorsPerCluster + SUPER.DataSectorStart, ROOT)) return ERRO;
+  if(!read_cluster(SUPER.RootDirCluster*SectorsPerCluster*SECTOR_SIZE + SUPER.DataSectorStart, ROOT)) return ERRO;
   //memcpy(&ROOT + SUPER.DataSectorStart, SUPER+24, sizeof(ROOT));
 
-  return ERRO;
+  FATSize = SECTOR_SIZE * (SUPER.DataSectorStart - SUPER.pFATSectorStart);
+  FAT = (DWORD*) malloc(FATSize);
+  for(i=0; i<FATSize; i+=SECTOR_SIZE){
+    if(read_sector(SUPER.pFATSectorStart+i, FAT+i) != 0) return ERRO;
+  }
 };
 
+int alocateCluster(){
+  int i;
+  for(i = 0; i < FATSize; i++){
+    if( *(FAT+i) == 0) return i;
+  }
+  return ERRO;
+};
 
 char** str_split(char* a_str, const char a_delim)
 {
@@ -316,19 +327,22 @@ int mkdir2 (char *pathname){
     if(paiDir == NULL || tmpDir->TypeVal != TYPEVAL_DIRETORIO) return ERRO;
   }
 
-  // acha entrada nao ocupada
+  // acha entrada nao ocupada no diretorio pai
   for(j = 0; j< RecsPerCluster; j++){
     if( (tmpDir+j*64)->TypeVal == TYPEVAL_INVALIDO) break;
   }
+
   // se for acima foi todo percorrido sem achar entrada desocupada
   if( (tmpDir+j*64)->TypeVal != TYPEVAL_INVALIDO) return ERRO;
+  // senao
   numCluster = alocateCluster();
+  if(numCluster < 0) return ERRO;
   (tmpDir+j*64)->TypeVal = TYPEVAL_DIRETORIO;
   strcpy( &((tmpDir+j*64)->name), *(tokens + i) );
   (tmpDir+j*64)->bytesFileSize = CLUSTER_SIZE;
-  (tmpDir+j*64)->firstCluster = ;
+  (tmpDir+j*64)->firstCluster = numCluster;
 
-  return ERRO;
+  return SUCESSO;
 }
 
 int rmdir2 (char *pathname){
