@@ -25,6 +25,20 @@ int fscriado = 0;
 char FILENAME[MAX_FILE_NAME_SIZE];
 char PATH[MAX_FILE_NAME_SIZE]; // str auxiliar para percorrer nomes de arquivos
 
+
+struct lista{
+  int current_pointer = 0;
+  int handle;
+  int pos; // usaremos a posicao do arquivo em disco para sabermos se ele esta aberto ou nao
+  lista *prox = NULL;
+  lista *ant = NULL;
+};
+
+lista *open_files_list;
+lista *open_dir_list;
+
+
+
 ///////////////////////////////// Auxiliares
 
 int read_cluster(int pos, *buffer){
@@ -127,18 +141,18 @@ RC* novoRC(RC* Dir_ptr){
   return NULL;
 }
 
-*RC get_RC_in_DIR (RC* dir, *filename){
+*RC get_RC_in_DIR (RC* dir, char *filename){
   int i;
   for(i = 0; i < RecsPerCluster; i++){
-    if(strcmp( &((dir + i*sizeof(RC))->name), filename) == 0) return &(dir + i*sizeof(RC));
+    if(strcmp( (dir + i*sizeof(RC))->name, filename) == 0) return &(dir + i*sizeof(RC));
   }
   return NULL;
 }
 
-RC* get_next_dir(RC* dir, *filename){
+RC* get_next_dir(RC* dir, char *filename){
   RC* tmp;
   tmp = get_RC_in_DIR(dir, filename);
-  if(tmp == NULL) return NULL;
+  if(tmp == NULL || tmpDir->TypeVal != TYPEVAL_DIRETORIO) return NULL;
   tmp = &(tmp->firstCluster * SectorsPerCluster + SUPER.DataSectorStart);
   return tmp;
 }
@@ -342,6 +356,10 @@ int mkdir2 (char *pathname){
   (tmpDir+j*64)->bytesFileSize = CLUSTER_SIZE;
   (tmpDir+j*64)->firstCluster = numCluster;
 
+  // salva posicao da FAT como ultimo cluster do arquivo (diretorio)
+  FAT[numCluster] = 0xFFFFFFFF;
+
+  /// zerar todas entradas do diretorio para ter certeza que está conforme, para quando alguma entreda for usada
   return SUCESSO;
 }
 
@@ -367,12 +385,12 @@ int rmdir2 (char *pathname){
   strcpy(FILENAME, pathname);
   tokens = str_split(FILENAME, '/');
 
-
+  paiDir = tmpDir;
   // aqui há um +1 para criterio de parada parar no diretorio pai
   for(i = 0; *(tokens + i + 1); i++){
-    paiDir = get_next_dir(tmpDir, *(tokens + i));
+    paiDir = get_next_dir(paiDir, *(tokens + i));
     // pathname nao existe
-    if(paiDir == NULL || tmpDir->TypeVal != TYPEVAL_DIRETORIO) return ERRO;
+    if(paiDir == NULL) return ERRO;
   }
   // pega ultima string da sequencia do pathname
   tmpDir = get_next_dir(paiDir, *(tokens + i));
@@ -382,16 +400,40 @@ int rmdir2 (char *pathname){
     if( (tmpDir+i*64)->TypeVal != TYPEVAL_INVALIDO) return ERRO;
   }
 
-
   return ERRO;
 }
 
 int chdir2 (char *pathname){
+  int i;
+  char *PATHNAME;
+
+  if(pathname == NULL || pathname[0] == '\0') return ERRO;
+
+  PATHNAME = (char *) malloc(strlen(pathname));
+
   if(!fscriado) {
     inicializa();
     fscriado = 1;
   }
-  return ERRO;
+
+  if(pathname[0] == '/'){ // caminho absoluto
+    tmpDir = ROOT;
+  }
+  else{ // caminho relativo
+    tmpDir = CURRENT_DIR;
+  }
+
+  strcpy(PATHNAME, pathname);
+  tokens = str_split(PATHNAME, '/');
+
+  // aqui há um +1 para criterio de parada parar no diretorio pai
+  for(i = 0; *(tokens + i ); i++){
+    tmpDir = get_next_dir(tmpDir, *(tokens + i));
+    // pathname nao existe
+    if(tmpDir == NULL) return ERRO;
+  }
+
+  return SUCESSO;
 }
 
 int getcwd2 (char *pathname, int size){
