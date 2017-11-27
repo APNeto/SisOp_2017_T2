@@ -260,6 +260,8 @@ FILE2 open2 (char *filename){
   arq->bytesFileSize = CLUSTER_SIZE;
   arq->fistCluster = achaFat();
   //if(achaFat()) return ERRO; // nao ha mais CLUSTER livre para arquivo
+
+  num_file_open++;
   return SUCESSO;
 
   // localiza entrada se absoluto, salvando a localização atual, para voltar depois
@@ -274,14 +276,32 @@ int close2 (FILE2 handle) {
     inicializa();
     fscriado = 1;
   }
+  if(handle < 0) return ERRO;
+  // recupera handle
+  num_file_open--;
   return ERRO;
 }
 
 int read2 (FILE2 handle, char *buffer, int size){
+  int i,j;
   if(!fscriado) {
     inicializa();
     fscriado = 1;
   }
+
+  // recupera estrutura junto ao handle
+  // recupera cluster atual do arquivo?
+  /*for(i=0, j=0; i<size;i++, j++){
+    buffer[i] = *(current_pointer+j);
+    current_pointer += j;
+    if(){ // chegou ao fim do cluster atual
+      j = 0;
+      // recupera proximo cluster
+      current_pointer =  ;
+    };
+  }
+  */
+  return i; // numero de bytes lidos
 
   return ERRO;
 }
@@ -483,7 +503,7 @@ int readdir2 (DIR2 handle, DIRENT2 *dentry){
     fscriado = 1;
   }
   if( 0 > handle || handle > open_dir_open) return ERRO;
-
+  if(dentry == NULL) return ERRO;
   /// recuperar Record de handle
   /// aqui vai o handle?
   RC *record = get_RC_in_DIR();
@@ -507,6 +527,7 @@ int closedir2 (DIR2 handle){
   // handle em lista de diretorios abertos
 
   if(handle < 0) return ERRO;
+  num_dir_open--;
   return SUCESSO;
   return ERRO;
 }
