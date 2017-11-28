@@ -15,7 +15,7 @@ BIN_DIR=./bin
 SRC_DIR=./src
 
 all: $(SRC_DIR)/t2fs.c $(INC_DIR)/apidisk.h $(INC_DIR)/t2fs.h 
-	$(CC) -c $(SRC_DIR)/t2fs.c
+	$(CC) -c $(SRC_DIR)/t2fs.c -Wall
 
 #t2fs: $(LIB_DIR)/t2fs.o
 #	$(CC) -o $@ $< $(LIB_DIR)/apidisk.o -I$(INC_DIR) 
