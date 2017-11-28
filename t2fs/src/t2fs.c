@@ -136,17 +136,26 @@ char** str_split(char* a_str, const char a_delim)
 RC* novoRC(RC* Dir_ptr){
   int i;
   for(i = 0; i<RecsPerCluster; i++){
-    if(Dir_ptr .TypeVal == TYPEVAL_INVALIDO) return &();
+    if(Dir_ptr[i].TypeVal == TYPEVAL_INVALIDO) return &();
   }
   return NULL;
 }
 
-*RC get_RC_in_DIR (RC* dir, char *filename){
+RC* get_RC_in_DIR (RC* dir, char *filename){
   int i;
   for(i = 0; i < RecsPerCluster; i++){
     if(strcmp( (dir + i*sizeof(RC))->name, filename) == 0) return &(dir + i*sizeof(RC));
   }
   return NULL;
+}
+
+int resetFAT(int numFat){
+  int i;
+  FAT[numFat] = 0x00000000;
+  for(i=0; i<FATtotalSize; i+=SECTOR_SIZE)
+    if(write_sector(FATstart + numFat + i, FAT+i) != 0) return ERRO;
+
+  return SUCESSO;
 }
 
 RC* get_next_dir(RC* dir, char *filename){
@@ -385,7 +394,7 @@ int mkdir2 (char *pathname){
 
 int rmdir2 (char *pathname){
   char **tokens;
-  RC *tmpDir, *tmpPai;
+  RC *tmpDir, *paiDir, *dirRC;
   int i;
   char buffer[CLUSTER_SIZE];
   char *FILENAME = (char*) malloc(strlen(pathname));
@@ -406,19 +415,26 @@ int rmdir2 (char *pathname){
   tokens = str_split(FILENAME, '/');
 
   paiDir = tmpDir;
+  i = 0;
   // aqui há um +1 para criterio de parada parar no diretorio pai
-  for(i = 0; *(tokens + i + 1); i++){
+  for(; *(tokens + i + 1); i++){
     paiDir = get_next_dir(paiDir, *(tokens + i));
     // pathname nao existe
     if(paiDir == NULL) return ERRO;
   }
-  // pega ultima string da sequencia do pathname
+  // pega dir de ultima string da sequencia do pathname
   tmpDir = get_next_dir(paiDir, *(tokens + i));
 
   // se diretorio nao vazio
   for(i = 0; i< RecsPerCluster; i++){
     if( (tmpDir+i*64)->TypeVal != TYPEVAL_INVALIDO) return ERRO;
   }
+
+  dirRC = get_RC_in_DIR(paiDir, *(tokens + i));
+  dirRC->firstCluster;
+
+
+
 
   return ERRO;
 }
@@ -465,7 +481,7 @@ int getcwd2 (char *pathname, int size){
 }
 
 DIR2 opendir2 (char *pathname){
-  char **tokens;
+  int handle = 0;
   RC *tmpDir;
   int i;
   char buffer[CLUSTER_SIZE];
@@ -523,10 +539,10 @@ int closedir2 (DIR2 handle){
     fscriado = 1;
   }
 
+  if(handle < 0) return ERRO;
   // recuperar RC de handle?
   // handle em lista de diretorios abertos
 
-  if(handle < 0) return ERRO;
   num_dir_open--;
   return SUCESSO;
   return ERRO;
