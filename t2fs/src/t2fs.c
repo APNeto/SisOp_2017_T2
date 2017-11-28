@@ -72,7 +72,7 @@ int inicializa(){
   CURRENT_DIR = ROOT;
   if(!read_cluster(SUPER.RootDirCluster*SectorsPerCluster*SECTOR_SIZE + SUPER.DataSectorStart, (char*) ROOT)) return ERRO;
   //memcpy(&ROOT + SUPER.DataSectorStart, SUPER+24, sizeof(ROOT));
-
+  BUFF  = (RC*) malloc(CLUSTER_SIZE);
   FATtotalSize = SECTOR_SIZE * (SUPER.DataSectorStart - SUPER.pFATSectorStart);
   FAT = (DWORD*) malloc(FATtotalSize);
   for(i=0; i<FATtotalSize; i+=SECTOR_SIZE){
@@ -138,7 +138,6 @@ char** str_split(char* a_str, const char a_delim)
 
 RC* novoRC(RC* Dir_ptr){
   int i;
-  BUFF = (RC*) malloc(CLUSTER_SIZE);
   read_cluster(Dir_ptr->firstCluster*SectorsPerCluster*SECTOR_SIZE+SUPER.DataSectorStart, (char*) BUFF);
   for(i = 0; i<RecsPerCluster; i++){
     if(BUFF[i].TypeVal == TYPEVAL_INVALIDO) return &BUFF[i];
@@ -175,6 +174,18 @@ int resetFAT(int numFat){
   return SUCESSO;
 }
 
+int apagaFatArq(RC* arq){
+  int ind = arq->firstCluster;
+  int numCluster = arq->bytesFileSize / CLUSTER_SIZE;
+  if((arq->bytesFileSize % CLUSTER_SIZE) > 0.0) numCluster++;
+  int i, tmp;
+  for(i=0; i<numCluster; i++){
+    tmp = FAT[ind];
+    FAT[ind] = 0x00000000;
+    ind = tmp;
+  }
+  return SUCESSO;
+}
 
 int achaFat() {
   int i;
@@ -220,7 +231,7 @@ FILE2 create2 (char *filename){
   // localiza diretorio para criar
   /// corrigir para nao ler nome do arquivo a ser criado
   RC *tmpDir = ROOT;
-  for(i=0; *(tokens + i+1); i++){
+  for(i=0; *(tokens + i+2); i++){
       tmpDir = get_next_dir(tmpDir, *(tokens + i));
       if(tmpDir == NULL) return ERRO; // n existe subdiretorio com nome token atual em dir tmpDir
   }
@@ -234,22 +245,53 @@ FILE2 create2 (char *filename){
   if(fatNum == ERRO) return ERRO;
   arq->firstCluster = fatNum;
   if(strlen(*(tokens+i)) > 54) return ERRO;
-  strcpy(&(arq->name), *(tokens+i));
+  strcpy(&(arq->name), *(tokens+i+1));
   arq->bytesFileSize = CLUSTER_SIZE;
-  arq->TypeVal = achaFat();
+  arq->TypeVal = TYPEVAL_REGULAR;
+  //if(achaFat()) return ERRO; // nao ha mais CLUSTER livre para arquivo
+  return SUCESSO;
+}
+
+
+int delete2 (char *filename){
+  int i;
+  char **tokens;
+  RC *buffer;
+  if(!fscriado) {
+    inicializa();
+    fscriado = 1;
+  }
+
+  // se ponteiro filename eh null ou \0
+  if(!filename) return ERRO;
+  if(filename[0] != '/') return ERRO;
+
+  int filenamesize = strlen(filename);
+  // nome do arquivo eh maior que o permitido
+  // MAX_FILE_NAME_SIZE definido no arquivo t2fs.h
+  char *FILENAME = (char*) malloc(filenamesize);
+  strcpy(FILENAME, filename);
+  //if(filenamesize > MAX_FILE_NAME_SIZE) return ERRO;
+  //strcpy(FILENAME, filename);
+
+  tokens = str_split(FILENAME, '/');
+  // localiza diretorio para apagar
+  RC *tmpDir = ROOT;
+  for(i=0; *(tokens + i+2); i++){
+      tmpDir = get_next_dir(tmpDir, *(tokens + i));
+      if(tmpDir == NULL) return ERRO; // n existe subdiretorio com nome token atual em dir tmpDir
+  }
+
+  RC *arq = get_RC_in_DIR(tmpDir, *(tokens+i+1) );
+  if(arq == NULL || arq->TypeVal) return ERRO;
+  apagaFat(arq);
+  //arq->bytesFileSize;
+  arq->TypeVal = TYPEVAL_INVALIDO;
   //if(achaFat()) return ERRO; // nao ha mais CLUSTER livre para arquivo
   return SUCESSO;
 }
 
 /*
-int delete2 (char *filename){
-  if(!fscriado) {
-    inicializa();
-    fscriado = 1;
-  }
-  return ERRO;
-}
-
 FILE2 open2 (char *filename){
   int i;
   if(!fscriado) {
