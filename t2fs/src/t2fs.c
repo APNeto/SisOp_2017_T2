@@ -2,6 +2,7 @@
 #include "../include/t2fs.h"
 #include <string.h>
 #include <stdlib.h>
+#include <assert.h>
 
 #define SUCESSO 0;
 #define ERRO -1;
@@ -14,6 +15,7 @@ SB SUPER;
 RC *ROOT; // ROOT é um conjunto de records, ou seja, um diretorio. Aponta para primeiro record do diretorio
 RC *CURRENT_DIR;
 DWORD *FAT;
+RC *BUFF;
 
 int FATstart;
 int FATtotalSize;
@@ -27,23 +29,24 @@ char PATH[MAX_FILE_NAME_SIZE]; // str auxiliar para percorrer nomes de arquivos
 
 
 struct lista{
-  int current_pointer = 0;
+  int current_pointer;
   int handle;
   int pos; // usaremos a posicao do arquivo em disco para sabermos se ele esta aberto ou nao
-  lista *prox = NULL;
-  lista *ant = NULL;
+  struct lista *prox;
+  struct lista *ant;
 };
 
-lista *open_files_list;
-lista *open_dir_list;
+struct lista *open_files_list;
+struct lista *open_dir_list;
 
 
 
 ///////////////////////////////// Auxiliares
 
-int read_cluster(int pos, *buffer){
-  for(int i = 0; i < SectorsPerCluster; i++){
-    if(!read_sector(pos+i*SECTOR_SIZE, buffer+i*SECTOR_SIZE)) return ERRO;
+int read_cluster(int pos, char *buffer){
+  int i;
+  for(i = 0; i < SectorsPerCluster; i++){
+    if(!read_sector(pos+i*SECTOR_SIZE, (char*) &buffer[i*SECTOR_SIZE])) return ERRO;
   }
   return SUCESSO;
 };
@@ -52,34 +55,34 @@ int inicializa(){
   int i;
   char buffer[SECTOR_SIZE];
   if(!read_sector(0, buffer)) return ERRO;
-  memcpy(SUPER.id, buffer, size_t 4);
-  memcpy(SUPER.version, buffer+4, size_t 2);
-  memcpy(SUPER.SuperBlockSize, buffer+6, size_t 2);
-  memcpy(SUPER.DiskSize, buffer+8, size_t 4);
-  memcpy(SUPER.NofSectors, buffer+12, size_t 4);
-  memcpy(SUPER.SectorsPerCluster, buffer+16, size_t 4);
-  memcpy(SUPER.pFATSectorStart, buffer+20, size_t 4);
-  memcpy(SUPER.RootDirCluster, buffer+24, size_t 4);
-  memcpy(SUPER.DataSectorStart, buffer+28, size_t 4);
+  memcpy(&SUPER.id, buffer, 4);
+  memcpy(&SUPER.version, buffer+4, 2);
+  memcpy(&SUPER.SuperBlockSize, buffer+6, 2);
+  memcpy(&SUPER.DiskSize, buffer+8, 4);
+  memcpy(&SUPER.NofSectors, buffer+12, 4);
+  memcpy(&SUPER.SectorsPerCluster, buffer+16, 4);
+  memcpy(&SUPER.pFATSectorStart, buffer+20, 4);
+  memcpy(&SUPER.RootDirCluster, buffer+24, 4);
+  memcpy(&SUPER.DataSectorStart, buffer+28, 4);
 
   SectorsPerCluster = SUPER.SectorsPerCluster;
   CLUSTER_SIZE = SECTOR_SIZE * SectorsPerCluster;
   RecsPerCluster = SectorsPerCluster * 4; // cabem 4 records por setor ou SECTOR_SIZE/sizeof(RC)
   ROOT = (RC*) malloc(CLUSTER_SIZE);
   CURRENT_DIR = ROOT;
-  if(!read_cluster(SUPER.RootDirCluster*SectorsPerCluster*SECTOR_SIZE + SUPER.DataSectorStart, ROOT)) return ERRO;
+  if(!read_cluster(SUPER.RootDirCluster*SectorsPerCluster*SECTOR_SIZE + SUPER.DataSectorStart, (char*) ROOT)) return ERRO;
   //memcpy(&ROOT + SUPER.DataSectorStart, SUPER+24, sizeof(ROOT));
 
-  FATSize = SECTOR_SIZE * (SUPER.DataSectorStart - SUPER.pFATSectorStart);
-  FAT = (DWORD*) malloc(FATSize);
-  for(i=0; i<FATSize; i+=SECTOR_SIZE){
-    if(read_sector(SUPER.pFATSectorStart+i, FAT+i) != 0) return ERRO;
+  FATtotalSize = SECTOR_SIZE * (SUPER.DataSectorStart - SUPER.pFATSectorStart);
+  FAT = (DWORD*) malloc(FATtotalSize);
+  for(i=0; i<FATtotalSize; i+=SECTOR_SIZE){
+    if(read_sector(SUPER.pFATSectorStart+i, (char*) &FAT[i]) != 0) return ERRO;
   }
 };
 
 int alocateCluster(){
   int i;
-  for(i = 0; i < FATSize; i++){
+  for(i = 0; i < FATtotalSize; i++){
     if( *(FAT+i) == 0) return i;
   }
   return ERRO;
@@ -135,37 +138,51 @@ char** str_split(char* a_str, const char a_delim)
 
 RC* novoRC(RC* Dir_ptr){
   int i;
+  BUFF = (RC*) malloc(CLUSTER_SIZE);
+  read_cluster(Dir_ptr->firstCluster*SectorsPerCluster*SECTOR_SIZE+SUPER.DataSectorStart, (char*) BUFF);
   for(i = 0; i<RecsPerCluster; i++){
-    if(Dir_ptr[i].TypeVal == TYPEVAL_INVALIDO) return &();
+    if(BUFF[i].TypeVal == TYPEVAL_INVALIDO) return &BUFF[i];
   }
   return NULL;
 }
 
 RC* get_RC_in_DIR (RC* dir, char *filename){
   int i;
+  //BUFF = (RC*) malloc(CLUSTER_SIZE);
+  //read_cluster(dir->firstCluster*SectorsPerCluster*SECTOR_SIZE+SUPER.DataSectorStart, BUFF);
   for(i = 0; i < RecsPerCluster; i++){
-    if(strcmp( (dir + i*sizeof(RC))->name, filename) == 0) return &(dir + i*sizeof(RC));
+    if(strcmp( dir[i].name, filename) == 0) return &(dir[i]);
   }
   return NULL;
+}
+RC* get_next_dir(RC* dir, char *filename){
+  RC* tmp;
+  //BUFF = (RC*) malloc(CLUSTER_SIZE);
+  tmp = get_RC_in_DIR(dir, filename);
+  if(tmp == NULL || tmp->TypeVal != TYPEVAL_DIRETORIO) return NULL;
+  read_cluster(tmp->firstCluster*CLUSTER_SIZE+SUPER.DataSectorStart, (char*) BUFF);
+  //tmp = (RC*) (tmp->firstCluster * CLUSTER_SIZE + SUPER.DataSectorStart);
+  //return tmp;
+  return BUFF;
 }
 
 int resetFAT(int numFat){
   int i;
   FAT[numFat] = 0x00000000;
   for(i=0; i<FATtotalSize; i+=SECTOR_SIZE)
-    if(write_sector(FATstart + numFat + i, FAT+i) != 0) return ERRO;
+    if(write_sector(FATstart + i, (char*) &(FAT[i])) != 0) return ERRO;
 
   return SUCESSO;
 }
 
-RC* get_next_dir(RC* dir, char *filename){
-  RC* tmp;
-  tmp = get_RC_in_DIR(dir, filename);
-  if(tmp == NULL || tmpDir->TypeVal != TYPEVAL_DIRETORIO) return NULL;
-  tmp = &(tmp->firstCluster * SectorsPerCluster + SUPER.DataSectorStart);
-  return tmp;
-}
 
+int achaFat() {
+  int i;
+  for(i=0; i<FATtotalSize;i++){
+    if(FAT[i] == 0x00000000) return i;
+  }
+  return ERRO;
+}
 
 
 ///////////////////////////////////// Funções abaixo
@@ -180,6 +197,8 @@ int identify2 (char *name, int size){
 
 FILE2 create2 (char *filename){
   int i;
+  char **tokens;
+  RC *buffer;
   if(!fscriado) {
     inicializa();
     fscriado = 1;
@@ -201,22 +220,27 @@ FILE2 create2 (char *filename){
   // localiza diretorio para criar
   /// corrigir para nao ler nome do arquivo a ser criado
   RC *tmpDir = ROOT;
-  for(i=0; *(tokens + i); i++){
-      tmpDir = get_RC_in_DIR(tmpDir, (tokens + i))
+  for(i=0; *(tokens + i+1); i++){
+      tmpDir = get_next_dir(tmpDir, *(tokens + i));
       if(tmpDir == NULL) return ERRO; // n existe subdiretorio com nome token atual em dir tmpDir
   }
 
   // recupera cluster de tmpDir mais filho na hierarquia
-  tmpDir = &(tmpDir->firstCluster * SectorsPerCluster + SUPER.DataSectorStart);
+  //buffer = malloc(CLUSTER_SIZE);
+  //read_cluster(tmpDir->firstCluster * SectorsPerCluster + SUPER.DataSectorStart, buffer);
   // acha entrada válida no diretório
   RC *arq = novoRC(tmpDir);
-  strcpy(arq->name, nomearquivo);
+  int fatNum = achaFat();
+  if(fatNum) return ERRO;
+  arq->firstCluster = fatNum;
+  strcpy(arq->name, *(tokens+i));
   arq->bytesFileSize = CLUSTER_SIZE;
-  arq->fistCluster = achaFat();
+  arq->TypeVal = achaFat();
   //if(achaFat()) return ERRO; // nao ha mais CLUSTER livre para arquivo
   return SUCESSO;
 }
 
+/*
 int delete2 (char *filename){
   if(!fscriado) {
     inicializa();
@@ -309,7 +333,7 @@ int read2 (FILE2 handle, char *buffer, int size){
       current_pointer =  ;
     };
   }
-  */
+  *
   return i; // numero de bytes lidos
 
   return ERRO;
@@ -547,3 +571,4 @@ int closedir2 (DIR2 handle){
   return SUCESSO;
   return ERRO;
 }
+*/
