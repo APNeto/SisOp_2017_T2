@@ -4,8 +4,8 @@
 #include <stdlib.h>
 #include <assert.h>
 
-#define SUCESSO 0;
-#define ERRO -1;
+#define SUCESSO 0
+#define ERRO -1
 typedef struct t2fs_superbloco SB;
 typedef struct t2fs_record RC;
 
@@ -231,9 +231,10 @@ FILE2 create2 (char *filename){
   // acha entrada válida no diretório
   RC *arq = novoRC(tmpDir);
   int fatNum = achaFat();
-  if(fatNum) return ERRO;
+  if(fatNum == ERRO) return ERRO;
   arq->firstCluster = fatNum;
-  strcpy(arq->name, *(tokens+i));
+  if(strlen(*(tokens+i)) > 54) return ERRO;
+  strcpy(&(arq->name), *(tokens+i));
   arq->bytesFileSize = CLUSTER_SIZE;
   arq->TypeVal = achaFat();
   //if(achaFat()) return ERRO; // nao ha mais CLUSTER livre para arquivo
