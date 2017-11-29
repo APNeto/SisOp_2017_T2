@@ -277,7 +277,7 @@ FILE2 create2 (char *filename){
   //read_cluster(tmpDir->firstCluster * SectorsPerCluster + SUPER.DataSectorStart, buffer);
   // acha entrada válida no diretório
   RC *arq = novoRC(tmpDir);
-  int fatNum = achaFat();
+  int fatNum = achaFatArq();
   if(fatNum == ERRO) return ERRO;
   arq->firstCluster = fatNum;
   if(strlen(*(tokens+i)) > 54) return ERRO;
@@ -626,7 +626,7 @@ DIR2 opendir2 (char *pathname){
   char **tokens;
   int i;
   char buffer[CLUSTER_SIZE];
-  if(pathname == NULL || pathname[0] = '\0') return ERRO;
+  if(pathname == NULL || pathname[0] == '\0') return ERRO;
   if(pathname[0] = '/') return SUCESSO;
   char *FILENAME = (char*) malloc(sizeof(char)*strlen(pathname));
 

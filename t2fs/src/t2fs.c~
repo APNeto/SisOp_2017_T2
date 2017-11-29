@@ -89,6 +89,7 @@ int inicializa(){
   for(i=0; i<FATtotalSize; i+=SECTOR_SIZE){
     if(read_sector(SUPER.pFATSectorStart+i, (char*) &FAT[i]) != 0) return ERRO;
   }
+  return SUCESSO;
 }
 
 int alocateCluster(){
@@ -99,52 +100,65 @@ int alocateCluster(){
   return ERRO;
 };
 
-char** str_split(char* a_str, const char a_delim)
+int str_split (const char *str, char c, char ***arr)
 {
-    char** result    = 0;
-    size_t count     = 0;
-    char* tmp        = a_str;
-    char* last_comma = 0;
-    char delim[2];
-    delim[0] = a_delim;
-    delim[1] = 0;
+    int count = 1;
+    int token_len = 1;
+    int i = 0;
+    char *p;
+    char *t;
 
-    /* Count how many elements will be extracted. */
-    while (*tmp)
+    p = str;
+    while (*p != '\0')
     {
-        if (a_delim == *tmp)
-        {
+        if (*p == c)
             count++;
-            last_comma = tmp;
-        }
-        tmp++;
+        p++;
     }
 
-    /* Add space for trailing token. */
-    count += last_comma < (a_str + strlen(a_str) - 1);
+    *arr = (char**) malloc(sizeof(char*) * count);
+    if (*arr == NULL)
+        exit(1);
 
-    /* Add space for terminating null string so caller
-       knows where the list of returned strings ends. */
-    count++;
-
-    result = malloc(sizeof(char*) * count);
-    if (result)
+    p = str;
+    while (*p != '\0')
     {
-        size_t idx  = 0;
-        char* token = strtok(a_str, delim);
-
-        while (token)
+        if (*p == c)
         {
-            assert(idx < count);
-            *(result + idx++) = strdup(token);
-            token = strtok(0, delim);
+            (*arr)[i] = (char*) malloc( sizeof(char) * token_len );
+            if ((*arr)[i] == NULL)
+                exit(1);
+
+            token_len = 0;
+            i++;
         }
-        printf("%d\n",count);
-        assert(idx == count - 1);
-        *(result + idx) = 0;
+        p++;
+        token_len++;
+    }
+    (*arr)[i] = (char*) malloc( sizeof(char) * token_len );
+    if ((*arr)[i] == NULL)
+        exit(1);
+
+    i = 0;
+    p = str;
+    t = ((*arr)[i]);
+    while (*p != '\0')
+    {
+        if (*p != c && *p != '\0')
+        {
+            *t = *p;
+            t++;
+        }
+        else
+        {
+            *t = '\0';
+            i++;
+            t = ((*arr)[i]);
+        }
+        p++;
     }
 
-    return result;
+    return count;
 }
 
 RC* novoRC(RC* Dir_ptr){
@@ -249,7 +263,7 @@ FILE2 create2 (char *filename){
   //if(filenamesize > MAX_FILE_NAME_SIZE) return ERRO;
   //strcpy(FILENAME, filename);
 
-  tokens = str_split(FILENAME, '/');
+  int tst = str_split(FILENAME, '/', &tokens);
   // localiza diretorio para criar
   /// corrigir para nao ler nome do arquivo a ser criado
   RC *tmpDir = ROOT;
@@ -263,7 +277,7 @@ FILE2 create2 (char *filename){
   //read_cluster(tmpDir->firstCluster * SectorsPerCluster + SUPER.DataSectorStart, buffer);
   // acha entrada válida no diretório
   RC *arq = novoRC(tmpDir);
-  int fatNum = achaFatArq();
+  int fatNum = achaFat();
   if(fatNum == ERRO) return ERRO;
   arq->firstCluster = fatNum;
   if(strlen(*(tokens+i)) > 54) return ERRO;
@@ -296,7 +310,7 @@ int delete2 (char *filename){
   //if(filenamesize > MAX_FILE_NAME_SIZE) return ERRO;
   //strcpy(FILENAME, filename);
 
-  tokens = str_split(FILENAME, '/');
+  int tst = str_split(FILENAME, '/', &tokens);
   // localiza diretorio para apagar
   RC *tmpDir = ROOT;
   for(i=0; *(tokens + i+2); i++){
@@ -343,7 +357,7 @@ FILE2 open2 (char *filename){
   //if(filenamesize > MAX_FILE_NAME_SIZE) return ERRO;
   //strcpy(FILENAME, filename);
 
-  tokens = str_split(FILENAME, '/');
+  int tst = str_split(FILENAME, '/', &tokens);
   // localiza diretorio para criar
   /// corrigir para nao ler nome do arquivo a ser criado
   RC *tmpDir = ROOT;
@@ -530,7 +544,7 @@ int rmdir2 (char *pathname){
     paiDir = CURRENT_DIR;
   }
   strcpy(FILENAME, pathname);
-  tokens = str_split(FILENAME, '/');
+  int tst = str_split(FILENAME, '/', &tokens);
 
   i = 0;
   // aqui há um +1 para criterio de parada parar no diretorio pai
@@ -607,30 +621,30 @@ int getcwd2 (char *pathname, int size){
 */
 
 DIR2 opendir2 (char *pathname){
-printf("passou\n");
   int handle = 0;
   RC *tmpDir;
   char **tokens;
   int i;
   char buffer[CLUSTER_SIZE];
-  char *FILENAME = (char*) malloc(strlen(pathname));
+  if(pathname == NULL || pathname[0] == '\0') return ERRO;
+  if(pathname[0] = '/') return SUCESSO;
+  char *FILENAME = (char*) malloc(sizeof(char)*strlen(pathname));
+
   if(!fscriado) {
     inicializa();
     fscriado = 1;
   }
-printf("passou2\n");
+
   if(pathname == NULL || pathname[0] == '\0') return ERRO;
   if(pathname[0] == '/'){ // caminho absoluto
-printf("passou3\n");
     tmpDir = ROOT;
   }
   else{ // caminho relativo
     tmpDir = CURRENT_DIR;
   }
   strcpy(FILENAME, pathname);
-printf("passou4\n");
-  tokens = str_split(FILENAME, '/');
-printf("passou5\n");
+  int tst = str_split(FILENAME, '/', &tokens);
+
   for(i = 0; *(tokens + i); i++){
     tmpDir = get_next_dir(tmpDir, *(tokens + i));
     if(tmpDir == NULL) return ERRO;
@@ -640,7 +654,7 @@ printf("passou5\n");
    j++;
    if(j==10) return ERRO;//printf("Já existem 10 diretorios abertos");
   }
-printf("passou6\n");
+
   strncpy(open_dir[j].name,tmpDir->name, MAX_FILE_NAME_SIZE);
   open_dir[j].firstCluster = tmpDir->firstCluster;
   open_dir[j].current_pointer=0;
