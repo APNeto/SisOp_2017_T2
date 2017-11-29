@@ -329,18 +329,18 @@ FILE2 open2 (char *filename){
   // localiza diretorio para criar
   /// corrigir para nao ler nome do arquivo a ser criado
   RC *tmpDir = ROOT;
-  for(i=0; *(tokens + i); i++){
-      tmpDir = get_RC_in_DIR(tmpDir, (tokens + i));
+  for(i=0; *(tokens + i+1); i++){
+      tmpDir = get_RC_in_DIR(tmpDir, *(tokens + i));
       if(tmpDir == NULL) return ERRO; // n existe subdiretorio com nome token atual em dir tmpDir
   }
 
   // recupera cluster de tmpDir mais filho na hierarquia
-  tmpDir = &(tmpDir->firstCluster * SectorsPerCluster + SUPER.DataSectorStart);
+  tmpDir = &(tmpDir->firstCluster * CLUSTER_SIZE + SUPER.DataSectorStart);
   // acha entrada válida no diretório
-  RC *arq = acha_valido(tmpDir);
-  strcpy(arq->name, filename);
+  RC *arq = novoRC(tmpDir);
+  strcpy(arq->name, *(tokens + i));
   arq->bytesFileSize = CLUSTER_SIZE;
-  arq->firstCluster = achaFat();
+  arq->firstCluster = achaFatArq();
   //if(achaFat()) return ERRO; // nao ha mais CLUSTER livre para arquivo
   
   int j=0;  
