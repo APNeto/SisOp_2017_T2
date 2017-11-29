@@ -74,10 +74,15 @@ int inicializa(){
   BUFF  = (RC*) malloc(CLUSTER_SIZE);
   FATtotalSize = SECTOR_SIZE * (SUPER.DataSectorStart - SUPER.pFATSectorStart);
   FAT = (DWORD*) malloc(FATtotalSize);
+  int j;
+  for(j=0;j<10;j++){
+  open_dir[j].current_pointer = -1;
+  open_files[j].current_pointer= -1;
+  }
   for(i=0; i<FATtotalSize; i+=SECTOR_SIZE){
     if(read_sector(SUPER.pFATSectorStart+i, (char*) &FAT[i]) != 0) return ERRO;
   }
-};
+}
 
 int alocateCluster(){
   int i;
@@ -575,11 +580,21 @@ DIR2 opendir2 (char *pathname){
     tmpDir = get_next_dir(tmpDir, *(tokens + i));
     if(tmpDir == NULL) return ERRO;
   }
-
-  // colocar handle em lista de diretorios abertos
-  num_dir_open++;
-  return handle;
+  int j=0;  
+  while(open_dir[j].current_pointer!=-1){
+   j++;    
+  }
+  if(j>=10){
+  //printf("Já existem 10 diretorios abertos");
   return ERRO;
+}
+  strncpy(open_dir[j].name,tmpDir->name,56);
+  open_dir[j].firstCluster = tmpDir->firstCluster;
+  open_dir[j].current_pointer=0;
+  // colocar handle em lista de diretorios abertos
+  //num_dir_open++;
+  //return handle;
+  return j;
 }
 
 /*
