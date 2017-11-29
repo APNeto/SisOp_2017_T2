@@ -249,7 +249,7 @@ FILE2 create2 (char *filename){
   if(fatNum == ERRO) return ERRO;
   arq->firstCluster = fatNum;
   if(strlen(*(tokens+i)) > 54) return ERRO;
-  strcpy(&(arq->name), *(tokens+i+1));
+  strcpy((arq->name), *(tokens+i+1));
   arq->bytesFileSize = CLUSTER_SIZE;
   arq->TypeVal = TYPEVAL_REGULAR;
   //if(achaFat()) return ERRO; // nao ha mais CLUSTER livre para arquivo
@@ -295,9 +295,11 @@ int delete2 (char *filename){
   return SUCESSO;
 }
 
-/*
+
 FILE2 open2 (char *filename){
   int i;
+  int res;
+  char **tokens;
   if(!fscriado) {
     inicializa();
     fscriado = 1;
@@ -308,7 +310,7 @@ FILE2 open2 (char *filename){
   // abre arquivo em dir atual
   if(filename[0] != '/'){
     for(i=0; i<RecsPerCluster; i++){
-      int res = strcmp(CURRENT_DIR+i*sizeof(RC))->name, filename);
+      res = strcmp((CURRENT_DIR+i*sizeof(RC))->name, filename);
       if(res == 0) break;
     }
     if(res != 0) return ERRO;
@@ -328,7 +330,7 @@ FILE2 open2 (char *filename){
   /// corrigir para nao ler nome do arquivo a ser criado
   RC *tmpDir = ROOT;
   for(i=0; *(tokens + i); i++){
-      tmpDir = get_RC_in_DIR(tmpDir, (tokens + i))
+      tmpDir = get_RC_in_DIR(tmpDir, (tokens + i));
       if(tmpDir == NULL) return ERRO; // n existe subdiretorio com nome token atual em dir tmpDir
   }
 
@@ -336,21 +338,36 @@ FILE2 open2 (char *filename){
   tmpDir = &(tmpDir->firstCluster * SectorsPerCluster + SUPER.DataSectorStart);
   // acha entrada válida no diretório
   RC *arq = acha_valido(tmpDir);
-  strcpy(arq->name, nomearquivo);
+  strcpy(arq->name, filename);
   arq->bytesFileSize = CLUSTER_SIZE;
-  arq->fistCluster = achaFat();
+  arq->firstCluster = achaFat();
   //if(achaFat()) return ERRO; // nao ha mais CLUSTER livre para arquivo
-
-  num_file_open++;
-  return SUCESSO;
+  
+  int j=0;  
+  while(open_files[j].current_pointer!=-1){
+   j++;    
+   if(j>10)break;
+  }
+  if(j>=10){
+  //printf("Já existem 10 diretorios abertos");
+  return ERRO;
+}
+  //strncpy(open_files[j].name,arq->name,56);
+  //open_files[j].firstCluster = arq->fistCluster;
+//  open_files[j].current_pointer=0;
+  
+// colocar handle em lista de diretorios abertos
+  //num_dir_open++;
+  //return handle;
+  return j;
+  //num_file_open++;
+  //return SUCESSO;
 
   // localiza entrada se absoluto, salvando a localização atual, para voltar depois
   // ve se arquivo existe no diretorio especificado
-
-
-  return ERRO;
 }
 
+/*
 int close2 (FILE2 handle) {
   if(!fscriado) {
     inicializa();
@@ -583,6 +600,7 @@ DIR2 opendir2 (char *pathname){
   int j=0;  
   while(open_dir[j].current_pointer!=-1){
    j++;    
+   if(j>10)break;
   }
   if(j>=10){
   //printf("Já existem 10 diretorios abertos");
