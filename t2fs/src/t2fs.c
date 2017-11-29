@@ -367,18 +367,21 @@ FILE2 open2 (char *filename){
   // ve se arquivo existe no diretorio especificado
 }
 
-/*
+
 int close2 (FILE2 handle) {
-  if(!fscriado) {
+   if(!fscriado) {
     inicializa();
     fscriado = 1;
   }
-  if(handle < 0) return ERRO;
-  // recupera handle
-  num_file_open--;
+  if(open_files[handle].current_pointer > 0)
+  {
+    open_files[handle].current_pointer=-1;
+    return 0;
+  }
   return ERRO;
 }
 
+/*
 int read2 (FILE2 handle, char *buffer, int size){
   int i,j;
   if(!fscriado) {
@@ -635,19 +638,20 @@ int readdir2 (DIR2 handle, DIRENT2 *dentry){
 
   return ERRO;
 }
+*/
 
 int closedir2 (DIR2 handle){
   if(!fscriado) {
     inicializa();
     fscriado = 1;
   }
-
-  if(handle < 0) return ERRO;
+  if(open_dir[handle].current_pointer>0)
+  {
+    open_dir[handle].current_pointer=-1;
+    return 0;
+  }
+  //if(handle < 0) return ERRO;
   // recuperar RC de handle?
   // handle em lista de diretorios abertos
-
-  num_dir_open--;
-  return SUCESSO;
   return ERRO;
 }
-*/
