@@ -16,7 +16,7 @@ SRC_DIR=./src
 TST_DIR=./teste
 EXE_DIR=./exemplo
 
-all: objetos mvObj lib.a mvLib
+all: teste1 teste2
 
 
 objetos: $(SRC_DIR)/t2fs.c $(INC_DIR)/apidisk.h $(INC_DIR)/t2fs.h
@@ -37,3 +37,11 @@ exemplo: $(EXE_DIR)/t2fstst.c
 
 clean:
 	rm -rf $(LIB_DIR)/*.a $(BIN_DIR)/*.o $(SRC_DIR)/*~ $(INC_DIR)/*~ *~
+
+
+teste1: $(SRC_DIR)/t2fs.c
+	$(CC) -c $(SRC_DIR)/t2fs.c -I$(INC_DIR)/ -Wall -m32 -g
+	mv t2fs.o $(BIN_DIR)/
+
+teste2: $(BIN_DIR)/t2fs.o
+	ar crs $(LIB_DIR)/libt2fs.a $(BIN_DIR)/t2fs.o $(LIB_DIR)/apidisk.o
