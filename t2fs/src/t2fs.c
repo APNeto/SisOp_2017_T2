@@ -29,6 +29,7 @@ char PATH[MAX_FILE_NAME_SIZE]; // str auxiliar para percorrer nomes de arquivos
 
 
 struct lista{
+  int usado;
   char name[MAX_FILE_NAME_SIZE];
   DWORD firstCluster;
   int current_pointer;
@@ -626,18 +627,25 @@ int readdir2 (DIR2 handle, DIRENT2 *dentry){
     inicializa();
     fscriado = 1;
   }
-  if( 0 > handle || handle > open_dir_open) return ERRO;
+  if( 0 > handle || handle > 10 - 1) return ERRO;
   if(dentry == NULL) return ERRO;
   /// recuperar Record de handle
   /// aqui vai o handle?
+  if(open_dir[handle].usado == 0) return ERRO;
+  
+  read_cluster(open_dir[handle].firstCluster*CLUSTER_SIZE+SUPER.DataSectorStart, (char*) BUFF);
   RC *record = get_RC_in_DIR();
-  if(record != NULL) {
-    strcpy(&(dentry->name), &(record->name));
-    dentry->fileType = record->TypeVal;
-    dentry->fileSize = record->bytesFileSize;
-    return SUCESSO;
+  for(i = 0; i < RecsPerCluster; i++){
+    if(strcmp( dir[i].name, filename) == 0) return &(dir[i]);
   }
-
+  for(i=open_dir[handle].current_pointer; i<CLUSTER_SIZE; i+=sizeof(RC)){
+    if(BUFF[i].TypeVal != NULL) {
+    strcpy( dentry->name, BUFF[i].name));
+    dentry->fileType = BUFF[i].TypeVal;
+    dentry->fileSize = BUFF[i].bytesFileSize;
+    return SUCESSO;
+    }
+  }
   return ERRO;
 }
 */
