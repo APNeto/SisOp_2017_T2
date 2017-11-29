@@ -26,7 +26,7 @@ int RecsPerCluster;
 int fscriado = 0;
 char FILENAME[MAX_FILE_NAME_SIZE];
 char PATH[MAX_FILE_NAME_SIZE]; // str auxiliar para percorrer nomes de arquivos
-
+char *CURRPATH;
 
 struct lista{
   int usado;
@@ -69,8 +69,9 @@ int inicializa(){
   CLUSTER_SIZE = SECTOR_SIZE * SectorsPerCluster;
   RecsPerCluster = SectorsPerCluster * 4; // cabem 4 records por setor ou SECTOR_SIZE/sizeof(RC)
   ROOT = (RC*) malloc(CLUSTER_SIZE);
-  CURRENT_DIR = ROOT;
+  CURRENT_DIR = (RC*) malloc(CLUSTER_SIZE);
   if(!read_cluster(SUPER.RootDirCluster*SectorsPerCluster*SECTOR_SIZE + SUPER.DataSectorStart, (char*) ROOT)) return ERRO;
+  if(!read_cluster(SUPER.RootDirCluster*SectorsPerCluster*SECTOR_SIZE + SUPER.DataSectorStart, (char*) CURRENT_DIR)) return ERRO;
   //memcpy(&ROOT + SUPER.DataSectorStart, SUPER+24, sizeof(ROOT));
   BUFF  = (RC*) malloc(CLUSTER_SIZE);
   FATtotalSize = SECTOR_SIZE * (SUPER.DataSectorStart - SUPER.pFATSectorStart);
@@ -435,7 +436,7 @@ int seek2 (FILE2 handle, unsigned int offset){
 
 int mkdir2 (char *pathname){
   char **tokens;
-  RC *tmpDir, *tmpPai;
+  RC *tmpDir;
   int i, j;
   int numCluster;
   char buffer[CLUSTER_SIZE];
@@ -527,9 +528,6 @@ int rmdir2 (char *pathname){
   dirRC = get_RC_in_DIR(paiDir, *(tokens + i));
   dirRC->firstCluster;
 
-
-
-
   return ERRO;
 }
 
@@ -550,19 +548,24 @@ int chdir2 (char *pathname){
     tmpDir = ROOT;
   }
   else{ // caminho relativo
-    tmpDir = CURRENT_DIR;
+    tmpDir = CURRPATH;
   }
 
   strcpy(PATHNAME, pathname);
   tokens = str_split(PATHNAME, '/');
 
   // aqui há um +1 para criterio de parada parar no diretorio pai
-  for(i = 0; *(tokens + i ); i++){
+  for(i = 0; *(tokens + i +1); i++){
     tmpDir = get_next_dir(tmpDir, *(tokens + i));
     // pathname nao existe
     if(tmpDir == NULL) return ERRO;
   }
-
+  RC* arq = get_next_RC(tmpDir, *(tokens+i+1));
+  if(arq == NULL) return ERRO;
+  read_cluster(arq->firstCluster*CLUSTER_SIZE+SUPER.DataSectorStart, (char*) CURRENT_DIR);
+  // se path absoluto, soh copiar para o currpath if()
+  CURRPATH = (char*) malloc(strlen(pathname);
+  
   return SUCESSO;
 }
 
@@ -571,6 +574,7 @@ int getcwd2 (char *pathname, int size){
     inicializa();
     fscriado = 1;
   }
+  CURRPATH = (char*) malloc(strlen(pathname);
   return ERRO;
 }
 
@@ -612,7 +616,7 @@ DIR2 opendir2 (char *pathname){
   //printf("Já existem 10 diretorios abertos");
   return ERRO;
 }
-  strncpy(open_dir[j].name,tmpDir->name,56);
+  strncpy(open_dir[j].name,tmpDir->name, MAX_FILE_NAME_SIZE);
   open_dir[j].firstCluster = tmpDir->firstCluster;
   open_dir[j].current_pointer=0;
   // colocar handle em lista de diretorios abertos
@@ -634,11 +638,8 @@ int readdir2 (DIR2 handle, DIRENT2 *dentry){
   if(open_dir[handle].usado == 0) return ERRO;
   
   read_cluster(open_dir[handle].firstCluster*CLUSTER_SIZE+SUPER.DataSectorStart, (char*) BUFF);
-  RC *record = get_RC_in_DIR();
-  for(i = 0; i < RecsPerCluster; i++){
-    if(strcmp( dir[i].name, filename) == 0) return &(dir[i]);
-  }
-  for(i=open_dir[handle].current_pointer; i<CLUSTER_SIZE; i+=sizeof(RC)){
+  RC *record;
+  for(i=open_dir[handle].current_pointer; i<RecsPerCluster; i+=sizeof(RC)){
     if(BUFF[i].TypeVal != NULL) {
     strcpy( dentry->name, BUFF[i].name));
     dentry->fileType = BUFF[i].TypeVal;
