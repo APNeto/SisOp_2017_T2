@@ -4,8 +4,8 @@
 
 int main(){
 char name = "/";
+int result;
 char *pathname;
-pathname = name;
-int result = opendir2(pathname);
+opendir2("/teste");
 printf("%d\n",result);
 }

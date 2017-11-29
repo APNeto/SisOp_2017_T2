@@ -128,7 +128,6 @@ char** str_split(char* a_str, const char a_delim)
     count++;
 
     result = malloc(sizeof(char*) * count);
-
     if (result)
     {
         size_t idx  = 0;
@@ -140,6 +139,7 @@ char** str_split(char* a_str, const char a_delim)
             *(result + idx++) = strdup(token);
             token = strtok(0, delim);
         }
+        printf("%d\n",count);
         assert(idx == count - 1);
         *(result + idx) = 0;
     }
@@ -263,7 +263,7 @@ FILE2 create2 (char *filename){
   //read_cluster(tmpDir->firstCluster * SectorsPerCluster + SUPER.DataSectorStart, buffer);
   // acha entrada válida no diretório
   RC *arq = novoRC(tmpDir);
-  int fatNum = achaFat();
+  int fatNum = achaFatArq();
   if(fatNum == ERRO) return ERRO;
   arq->firstCluster = fatNum;
   if(strlen(*(tokens+i)) > 54) return ERRO;
@@ -607,28 +607,30 @@ int getcwd2 (char *pathname, int size){
 */
 
 DIR2 opendir2 (char *pathname){
+printf("passou\n");
   int handle = 0;
   RC *tmpDir;
   char **tokens;
   int i;
   char buffer[CLUSTER_SIZE];
   char *FILENAME = (char*) malloc(strlen(pathname));
-
   if(!fscriado) {
     inicializa();
     fscriado = 1;
   }
-
+printf("passou2\n");
   if(pathname == NULL || pathname[0] == '\0') return ERRO;
   if(pathname[0] == '/'){ // caminho absoluto
+printf("passou3\n");
     tmpDir = ROOT;
   }
   else{ // caminho relativo
     tmpDir = CURRENT_DIR;
   }
   strcpy(FILENAME, pathname);
+printf("passou4\n");
   tokens = str_split(FILENAME, '/');
-
+printf("passou5\n");
   for(i = 0; *(tokens + i); i++){
     tmpDir = get_next_dir(tmpDir, *(tokens + i));
     if(tmpDir == NULL) return ERRO;
@@ -638,7 +640,7 @@ DIR2 opendir2 (char *pathname){
    j++;
    if(j==10) return ERRO;//printf("Já existem 10 diretorios abertos");
   }
-
+printf("passou6\n");
   strncpy(open_dir[j].name,tmpDir->name, MAX_FILE_NAME_SIZE);
   open_dir[j].firstCluster = tmpDir->firstCluster;
   open_dir[j].current_pointer=0;
