@@ -626,10 +626,9 @@ DIR2 opendir2 (char *pathname){
   char **tokens;
   int i;
   char buffer[CLUSTER_SIZE];
-  if(pathname == NULL || pathname[0] == '\0') return ERRO;
-  if(pathname[0] = '/') return SUCESSO;
+  if(pathname == NULL) return ERRO;
+  if(pathname == "/") return SUCESSO;
   char *FILENAME = (char*) malloc(sizeof(char)*strlen(pathname));
-
   if(!fscriado) {
     inicializa();
     fscriado = 1;
@@ -643,24 +642,30 @@ DIR2 opendir2 (char *pathname){
     tmpDir = CURRENT_DIR;
   }
   strcpy(FILENAME, pathname);
+   printf("passou\n");
   int tst = str_split(FILENAME, '/', &tokens);
-
+printf("passou2\n");
   for(i = 0; *(tokens + i); i++){
     tmpDir = get_next_dir(tmpDir, *(tokens + i));
-    if(tmpDir == NULL) return ERRO;
-  }
+    if(tmpDir == NULL) {
+     printf("erro\n");
+return ERRO;
+}
+}
+printf("passou3\n");
   int j=0;
   while(open_dir[j].current_pointer!=-1){
    j++;
    if(j==10) return ERRO;//printf("Já existem 10 diretorios abertos");
   }
-
+  
   strncpy(open_dir[j].name,tmpDir->name, MAX_FILE_NAME_SIZE);
   open_dir[j].firstCluster = tmpDir->firstCluster;
   open_dir[j].current_pointer=0;
   // colocar handle em lista de diretorios abertos
   //num_dir_open++;
   //return handle;
+ printf("j = %d\n",j);
   return j;
 }
 
