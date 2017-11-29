@@ -6,7 +6,7 @@
 #
 # NECESSARIO adaptar este esqueleto de makefile para suas necessidades.
 #
-# 
+#
 
 CC=gcc
 LIB_DIR=./lib
@@ -16,13 +16,13 @@ SRC_DIR=./src
 TST_DIR=./teste
 EXE_DIR=./exemplo
 
-all: objetos mvObj lib.a mvLib exemplo
+all: objetos mvObj lib.a mvLib
 
 
-objetos: $(SRC_DIR)/t2fs.c $(INC_DIR)/apidisk.h $(INC_DIR)/t2fs.h 
+objetos: $(SRC_DIR)/t2fs.c $(INC_DIR)/apidisk.h $(INC_DIR)/t2fs.h
 	$(CC) -c $(SRC_DIR)/t2fs.c
 
-mvObj: 
+mvObj:
 	mv *.o $(BIN_DIR)
 
 lib.a: $(BIN_DIR)/t2fs.o
@@ -31,10 +31,9 @@ lib.a: $(BIN_DIR)/t2fs.o
 mvLib:
 	mv *.a $(LIB_DIR)
 
-exemplo: 
-	$(CC) -o  $(EXE_DIR)/t2fstst $(EXE_DIR)/t2fstst.c -L$(LIB_DIR) -libt2fs
+exemplo: $(EXE_DIR)/t2fstst.c
+	$(CC) -o $(EXE_DIR)/t2fstst $(EXE_DIR)/t2fstst.c -L$(LIB_DIR) -I$(LIB_DIR)
 
 
 clean:
 	rm -rf $(LIB_DIR)/*.a $(BIN_DIR)/*.o $(SRC_DIR)/*~ $(INC_DIR)/*~ *~
-

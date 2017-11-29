@@ -171,6 +171,17 @@ RC* get_next_dir(RC* dir, char *filename){
   return BUFF;
 }
 
+RC* get_next_dir2(RC* dir, char *filename, RC* dest){
+  RC* tmp;
+  //BUFF = (RC*) malloc(CLUSTER_SIZE);
+  tmp = get_RC_in_DIR(dir, filename);
+  if(tmp == NULL || tmp->TypeVal != TYPEVAL_DIRETORIO) return NULL;
+  read_cluster(tmp->firstCluster*CLUSTER_SIZE+SUPER.DataSectorStart, (char*) dest);
+  //tmp = (RC*) (tmp->firstCluster * CLUSTER_SIZE + SUPER.DataSectorStart);
+  //return tmp;
+  return dest;
+}
+
 int resetFAT(int numFat){
   int i;
   FAT[numFat] = 0x00000000;
@@ -436,7 +447,7 @@ int seek2 (FILE2 handle, unsigned int offset){
 
 int mkdir2 (char *pathname){
   char **tokens;
-  RC *tmpDir;
+  RC *tmpDir, *paiDir;
   int i, j;
   int numCluster;
   char buffer[CLUSTER_SIZE];
@@ -457,42 +468,49 @@ int mkdir2 (char *pathname){
   strcpy(FILENAME, pathname);
   tokens = str_split(FILENAME, '/');
 
-
+  paiDir = tmpDir;
   // aqui há um +1 para criterio de parada parar no diretorio pai
   for(i = 0; *(tokens + i + 1); i++){
-    paiDir = get_next_dir(tmpDir, *(tokens + i));
+    paiDir = get_next_dir(paiDir, *(tokens + i));
     // pathname nao existe
-    if(paiDir == NULL || tmpDir->TypeVal != TYPEVAL_DIRETORIO) return ERRO;
+    if(paiDir == NULL || paiDir->TypeVal != TYPEVAL_DIRETORIO) return ERRO;
   }
 
   // acha entrada nao ocupada no diretorio pai
   for(j = 0; j< RecsPerCluster; j++){
-    if( (tmpDir+j*64)->TypeVal == TYPEVAL_INVALIDO) break;
+    if( paiDir[j].TypeVal == TYPEVAL_INVALIDO) break;
   }
+  if(j == RecsPerCluster) return ERRO;
 
   // se for acima foi todo percorrido sem achar entrada desocupada
-  if( (tmpDir+j*64)->TypeVal != TYPEVAL_INVALIDO) return ERRO;
+  if( tmpDir[j].TypeVal != TYPEVAL_INVALIDO) return ERRO;
   // senao
   numCluster = alocateCluster();
   if(numCluster < 0) return ERRO;
-  (tmpDir+j*64)->TypeVal = TYPEVAL_DIRETORIO;
-  strcpy( &((tmpDir+j*64)->name), *(tokens + i) );
-  (tmpDir+j*64)->bytesFileSize = CLUSTER_SIZE;
-  (tmpDir+j*64)->firstCluster = numCluster;
+  tmpDir[j].TypeVal = TYPEVAL_DIRETORIO;
+  strcpy( tmpDir[j].name, *(tokens + i) );
+  tmpDir[j].bytesFileSize = CLUSTER_SIZE;
+  tmpDir[j].firstCluster = numCluster;
 
+  write_cluster( , tmpDir);
   // salva posicao da FAT como ultimo cluster do arquivo (diretorio)
   FAT[numCluster] = 0xFFFFFFFF;
-
+  for(i=0; i<FATtotalSize; i+=SECTOR_SIZE)
+    if(write_sector(FATstart + i, (char*) &(FAT[i])) != 0) return ERRO;
   /// zerar todas entradas do diretorio para ter certeza que está conforme, para quando alguma entreda for usada
   return SUCESSO;
 }
 
+*/
 int rmdir2 (char *pathname){
   char **tokens;
   RC *tmpDir, *paiDir, *dirRC;
   int i;
   char buffer[CLUSTER_SIZE];
   char *FILENAME = (char*) malloc(strlen(pathname));
+  int numClusterPai;
+
+  tmpDir = (RC*) malloc(CLUSTER_SIZE);
 
   if(!fscriado) {
     inicializa();
@@ -501,36 +519,39 @@ int rmdir2 (char *pathname){
 
   if(pathname == NULL || pathname[0] == '\0') return ERRO;
   if(pathname[0] == '/'){ // caminho absoluto
-    tmpDir = ROOT;
+    paiDir = ROOT;
   }
   else{ // caminho relativo
-    tmpDir = CURRENT_DIR;
+    paiDir = CURRENT_DIR;
   }
   strcpy(FILENAME, pathname);
   tokens = str_split(FILENAME, '/');
 
-  paiDir = tmpDir;
   i = 0;
   // aqui há um +1 para criterio de parada parar no diretorio pai
   for(; *(tokens + i + 1); i++){
     paiDir = get_next_dir(paiDir, *(tokens + i));
     // pathname nao existe
     if(paiDir == NULL) return ERRO;
+    if(*(tokens + i + 2) == 0) numClusterPai = get_RC_in_DIR(paiDir, *(tokens + i + 1))->firstCluster;
   }
   // pega dir de ultima string da sequencia do pathname
-  tmpDir = get_next_dir(paiDir, *(tokens + i));
+  tmpDir = get_next_dir2(paiDir, *(tokens + i), tmpDir);
 
   // se diretorio nao vazio
-  for(i = 0; i< RecsPerCluster; i++){
-    if( (tmpDir+i*64)->TypeVal != TYPEVAL_INVALIDO) return ERRO;
+  int j;
+  for(j = 0; i< RecsPerCluster; j++){
+    if( tmpDir[j].TypeVal != TYPEVAL_INVALIDO) return ERRO;
   }
-
-  dirRC = get_RC_in_DIR(paiDir, *(tokens + i));
-  dirRC->firstCluster;
-
-  return ERRO;
+  free(tmpDir);
+  dirRC = get_RC_in_DIR(paiDir, *(tokens + i+1));
+  resetFAT(dirRC->firstCluster);
+  dirRC->TypeVal = TYPEVAL_INVALIDO;
+  // Falta escrever o cluster do pai de volta no disco
+  write_cluster( SUPER.DataSectorStart+numClusterPai*CLUSTER_SIZE,BUFF);
+  return SUCESSO;
 }
-
+/*
 int chdir2 (char *pathname){
   int i;
   char *PATHNAME;
@@ -574,7 +595,7 @@ int getcwd2 (char *pathname, int size){
     inicializa();
     fscriado = 1;
   }
-  CURRPATH = (char*) malloc(strlen(pathname);
+  strcpy(pathname, CURRPATH);
   return ERRO;
 }
 
@@ -610,7 +631,7 @@ DIR2 opendir2 (char *pathname){
   int j=0;
   while(open_dir[j].current_pointer!=-1){
    j++;
-   if(j=10) return ERRO;//printf("Já existem 10 diretorios abertos");
+   if(j==10) return ERRO;//printf("Já existem 10 diretorios abertos");
   }
 
   strncpy(open_dir[j].name,tmpDir->name, MAX_FILE_NAME_SIZE);
@@ -622,8 +643,10 @@ DIR2 opendir2 (char *pathname){
   return j;
 }
 
-/*
+
 int readdir2 (DIR2 handle, DIRENT2 *dentry){
+  int i;
+  RC *record;
   if(!fscriado) {
     inicializa();
     fscriado = 1;
@@ -635,10 +658,10 @@ int readdir2 (DIR2 handle, DIRENT2 *dentry){
   if(open_dir[handle].usado == 0) return ERRO;
 
   read_cluster(open_dir[handle].firstCluster*CLUSTER_SIZE+SUPER.DataSectorStart, (char*) BUFF);
-  RC *record;
+
   for(i=open_dir[handle].current_pointer; i<RecsPerCluster; i+=sizeof(RC)){
-    if(BUFF[i].TypeVal != NULL) {
-    strcpy( dentry->name, BUFF[i].name));
+    if(BUFF[i].TypeVal != TYPEVAL_INVALIDO) {
+    strcpy( dentry->name, BUFF[i].name);
     dentry->fileType = BUFF[i].TypeVal;
     dentry->fileSize = BUFF[i].bytesFileSize;
     return SUCESSO;
@@ -646,7 +669,7 @@ int readdir2 (DIR2 handle, DIRENT2 *dentry){
   }
   return ERRO;
 }
-*/
+
 
 int closedir2 (DIR2 handle){
   if(!fscriado) {
