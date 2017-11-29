@@ -51,6 +51,11 @@ int read_cluster(int pos, char *buffer){
   return SUCESSO;
 };
 
+int write_cluster (int pos, char *buffer){
+  return SUCESSO;
+}
+
+
 int inicializa(){
   int i;
   char buffer[SECTOR_SIZE];
@@ -204,7 +209,7 @@ int apagaFatArq(RC* arq){
   return SUCESSO;
 }
 
-int achaFat() {
+int achaFatArq() {
   int i;
   for(i=0; i<FATtotalSize;i++){
     if(FAT[i] == 0x00000000) return i;
@@ -258,7 +263,7 @@ FILE2 create2 (char *filename){
   //read_cluster(tmpDir->firstCluster * SectorsPerCluster + SUPER.DataSectorStart, buffer);
   // acha entrada válida no diretório
   RC *arq = novoRC(tmpDir);
-  int fatNum = achaFat();
+  int fatNum = achaFatArq();
   if(fatNum == ERRO) return ERRO;
   arq->firstCluster = fatNum;
   if(strlen(*(tokens+i)) > 54) return ERRO;
@@ -301,7 +306,7 @@ int delete2 (char *filename){
 
   RC *arq = get_RC_in_DIR(tmpDir, *(tokens+i+1) );
   if(arq == NULL || arq->TypeVal) return ERRO;
-  apagaFat(arq);
+  apagaFatArq(arq);
   //arq->bytesFileSize;
   arq->TypeVal = TYPEVAL_INVALIDO;
   //if(achaFat()) return ERRO; // nao ha mais CLUSTER livre para arquivo
