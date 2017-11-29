@@ -56,13 +56,13 @@ int inicializa(){
   char buffer[SECTOR_SIZE];
   if(!read_sector(0, buffer)) return ERRO;
   strncpy(SUPER.id, buffer,4);
-  SUPER.version = *((WORD *)(buffer + 4)); 
-  SUPER.SuperBlockSize = *((WORD *)(buffer + 6)); 
-  SUPER.DiskSize = *((DWORD *)(buffer + 8)); 
-  SUPER.NofSectors = *((DWORD *)(buffer + 12)); 
-  SUPER.SectorsPerCluster = *((DWORD *)(buffer + 16)); 
-  SUPER.pFATSectorStart = *((DWORD *)(buffer + 20)); 
-  SUPER.RootDirCluster = *((DWORD *)(buffer + 24)); 
+  SUPER.version = *((WORD *)(buffer + 4));
+  SUPER.SuperBlockSize = *((WORD *)(buffer + 6));
+  SUPER.DiskSize = *((DWORD *)(buffer + 8));
+  SUPER.NofSectors = *((DWORD *)(buffer + 12));
+  SUPER.SectorsPerCluster = *((DWORD *)(buffer + 16));
+  SUPER.pFATSectorStart = *((DWORD *)(buffer + 20));
+  SUPER.RootDirCluster = *((DWORD *)(buffer + 24));
   SUPER.DataSectorStart = *((DWORD *)(buffer + 28));
 
   SectorsPerCluster = SUPER.SectorsPerCluster;
@@ -346,10 +346,10 @@ FILE2 open2 (char *filename){
   arq->bytesFileSize = CLUSTER_SIZE;
   arq->firstCluster = achaFatArq();
   //if(achaFat()) return ERRO; // nao ha mais CLUSTER livre para arquivo
-  
-  int j=0;  
+
+  int j=0;
   while(open_files[j].current_pointer!=-1){
-   j++;    
+   j++;
    if(j>10)break;
   }
   if(j>=10){
@@ -359,7 +359,7 @@ FILE2 open2 (char *filename){
   //strncpy(open_files[j].name,arq->name,56);
   //open_files[j].firstCluster = arq->fistCluster;
 //  open_files[j].current_pointer=0;
-  
+
 // colocar handle em lista de diretorios abertos
   //num_dir_open++;
   //return handle;
@@ -565,7 +565,7 @@ int chdir2 (char *pathname){
   read_cluster(arq->firstCluster*CLUSTER_SIZE+SUPER.DataSectorStart, (char*) CURRENT_DIR);
   // se path absoluto, soh copiar para o currpath if()
   CURRPATH = (char*) malloc(strlen(pathname);
-  
+
   return SUCESSO;
 }
 
@@ -607,15 +607,12 @@ DIR2 opendir2 (char *pathname){
     tmpDir = get_next_dir(tmpDir, *(tokens + i));
     if(tmpDir == NULL) return ERRO;
   }
-  int j=0;  
+  int j=0;
   while(open_dir[j].current_pointer!=-1){
-   j++;    
-   if(j>10)break;
+   j++;
+   if(j=10) return ERRO;//printf("Já existem 10 diretorios abertos");
   }
-  if(j>=10){
-  //printf("Já existem 10 diretorios abertos");
-  return ERRO;
-}
+
   strncpy(open_dir[j].name,tmpDir->name, MAX_FILE_NAME_SIZE);
   open_dir[j].firstCluster = tmpDir->firstCluster;
   open_dir[j].current_pointer=0;
@@ -636,7 +633,7 @@ int readdir2 (DIR2 handle, DIRENT2 *dentry){
   /// recuperar Record de handle
   /// aqui vai o handle?
   if(open_dir[handle].usado == 0) return ERRO;
-  
+
   read_cluster(open_dir[handle].firstCluster*CLUSTER_SIZE+SUPER.DataSectorStart, (char*) BUFF);
   RC *record;
   for(i=open_dir[handle].current_pointer; i<RecsPerCluster; i+=sizeof(RC)){
