@@ -335,7 +335,9 @@ FILE2 open2 (char *filename){
   }
 
   // recupera cluster de tmpDir mais filho na hierarquia
-  tmpDir = &(tmpDir->firstCluster * CLUSTER_SIZE + SUPER.DataSectorStart);
+
+  //tmpDir = (tmpDir->firstCluster * CLUSTER_SIZE + SUPER.DataSectorStart);
+
   // acha entrada válida no diretório
   RC *arq = novoRC(tmpDir);
   strcpy(arq->name, *(tokens + i));
