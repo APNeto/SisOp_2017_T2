@@ -40,7 +40,7 @@ clean:
 
 
 teste1: $(SRC_DIR)/t2fs.c
-	$(CC) -c $(SRC_DIR)/t2fs.c -I$(INC_DIR)/ -Wall -m32 -g
+	$(CC) -c $(SRC_DIR)/t2fs.c -I$(INC_DIR)/ -Wall -g
 	mv t2fs.o $(BIN_DIR)/
 
 teste2: $(BIN_DIR)/t2fs.o
