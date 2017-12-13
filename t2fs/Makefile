@@ -16,7 +16,7 @@ SRC_DIR=./src
 TST_DIR=./teste
 EXE_DIR=./exemplo
 
-all: teste1 teste2
+all: objetos mvObj lib.a mvLib
 
 
 objetos: $(SRC_DIR)/t2fs.c $(INC_DIR)/apidisk.h $(INC_DIR)/t2fs.h
@@ -26,7 +26,7 @@ mvObj:
 	mv *.o $(BIN_DIR)
 
 lib.a: $(BIN_DIR)/t2fs.o
-	ar crs libt2fs.a $(BIN_DIR)/*.o
+	ar crs libt2fs.a $(BIN_DIR)/*.o $(LIB_DIR)/apidisk.o
 
 mvLib:
 	mv *.a $(LIB_DIR)

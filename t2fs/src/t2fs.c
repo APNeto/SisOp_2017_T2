@@ -51,7 +51,7 @@ int read_cluster(int pos, char *buffer){
   return SUCESSO;
 };
 
-int write_cluster(int pos, (RC*) buffer ){
+int write_cluster(int pos,RC* buffer ){
   int i;
   for(i = 0; i <CLUSTER_SIZE; i+=SectorsPerCluster)
     if(write_sector( pos+i, (char*) buffer+i) != 0) return ERRO;
@@ -103,7 +103,7 @@ int alocateCluster(){
   return ERRO;
 };
 
-int str_split (const char *str, char c, char ***arr)
+int str_split (char *str, char c, char ***arr)
 {
     int count = 1;
     int token_len = 1;
@@ -237,11 +237,13 @@ int achaFatArq() {
 
 ///////////////////////////////////// Funções abaixo
 int identify2 (char *name, int size){
-  if(!fscriado) {
-    inicializa();
-    fscriado = 1;
-  }
-  return ERRO;
+  char* str ="\nAberto Neto\nIago Boucinha\n\n";
+  memcpy(name, str, size);
+  if (size == 0)
+  name[0] = '\0';
+  else
+  name[size-1] = '\0';
+  return 0;
 }
 
 
@@ -418,7 +420,6 @@ int close2 (FILE2 handle) {
   return ERRO;
 }
 
-/*
 int read2 (FILE2 handle, char *buffer, int size){
   int i,j;
   if(!fscriado) {
@@ -428,16 +429,15 @@ int read2 (FILE2 handle, char *buffer, int size){
 
   // recupera estrutura junto ao handle
   // recupera cluster atual do arquivo?
-  /*for(i=0, j=0; i<size;i++, j++){
-    buffer[i] = *(current_pointer+j);
-    current_pointer += j;
-    if(){ // chegou ao fim do cluster atual
+  for(i=0, j=0; i<size;i++, j++){
+    //buffer[i] = *(current_pointer+j);
+    //current_pointer += j;
+    //if(){ // chegou ao fim do cluster atual
       j = 0;
       // recupera proximo cluster
-      current_pointer =  ;
-    };
+      //current_pointer =  ;
+    //};
   }
-  *
   return i; // numero de bytes lidos
 
   return ERRO;
@@ -466,7 +466,7 @@ int seek2 (FILE2 handle, unsigned int offset){
   }
   return ERRO;
 }
-*/
+
 int mkdir2 (char *pathname){
   char **tokens;
   RC *tmpDir, *paiDir;
@@ -489,7 +489,6 @@ int mkdir2 (char *pathname){
   }
   strcpy(FILENAME, pathname);
   int tst = str_split(FILENAME, '/', &tokens);
-
   paiDir = tmpDir;
   // aqui há um -1 para criterio de parada parar no diretorio pai
   for(i = 0; i  < tst-1; i++){
@@ -498,7 +497,7 @@ int mkdir2 (char *pathname){
     if(paiDir == NULL || paiDir->TypeVal != TYPEVAL_DIRETORIO) return ERRO;
     //if(i + 2 == 0) numClusterPai = get_RC_in_DIR(paiDir, *(tokens + i + 1))->firstCluster;
   }
-
+printf("passou2\n\n");
   // acha entrada nao ocupada no diretorio pai
   for(j = 0; j< RecsPerCluster; j++){
     if( paiDir[j].TypeVal == TYPEVAL_INVALIDO) break;
@@ -575,43 +574,32 @@ int rmdir2 (char *pathname){
   write_cluster( SUPER.DataSectorStart+numClusterPai*CLUSTER_SIZE,BUFF);
   return SUCESSO;
 }
-/*
-int chdir2 (char *pathname){
-  int i;
-  char *PATHNAME;
 
-  if(pathname == NULL || pathname[0] == '\0') return ERRO;
 
-  PATHNAME = (char *) malloc(strlen(pathname));
 
+int chdir2 (char *pathname) {
   if(!fscriado) {
     inicializa();
     fscriado = 1;
   }
-
-  if(pathname[0] == '/'){ // caminho absoluto
-    tmpDir = ROOT;
+  DIR2 handle;
+  char fatherPath[MAX_FILE_NAME_SIZE];
+  char name[MAX_FILE_NAME_SIZE];
+  //sepName(pathname, fatherPath, name);
+  handle = opendir2(name);
+  if(handle != ERRO) {
+  if(strcmp(pathname,"..") == 0) {
+  strcpy(CURRPATH,fatherPath);
   }
-  else{ // caminho relativo
-    tmpDir = CURRPATH;
+  else if(strcmp(pathname,".") == 0) {
+  strcpy(CURRPATH,CURRPATH);
   }
-
-  strcpy(PATHNAME, pathname);
-  tokens = str_split(PATHNAME, '/');
-
-  // aqui há um +1 para criterio de parada parar no diretorio pai
-  for(i = 0; *(tokens + i +1); i++){
-    tmpDir = get_next_dir(tmpDir, *(tokens + i));
-    // pathname nao existe
-    if(tmpDir == NULL) return ERRO;
-  }
-  RC* arq = get_next_RC(tmpDir, *(tokens+i+1));
-  if(arq == NULL) return ERRO;
-  read_cluster(arq->firstCluster*CLUSTER_SIZE+SUPER.DataSectorStart, (char*) CURRENT_DIR);
-  // se path absoluto, soh copiar para o currpath if()
-  CURRPATH = (char*) malloc(strlen(pathname);
-
-  return SUCESSO;
+  else {
+  //strcat(pathname, "/");
+  strcpy(CURRPATH, pathname);
+}
+}
+return 0;
 }
 
 int getcwd2 (char *pathname, int size){
@@ -623,7 +611,7 @@ int getcwd2 (char *pathname, int size){
   return ERRO;
 }
 
-*/
+
 
 DIR2 opendir2 (char *pathname){
   int handle = 0;
@@ -650,7 +638,7 @@ DIR2 opendir2 (char *pathname){
   strcpy(FILENAME, pathname);
   int tst = str_split(FILENAME, '/', &tokens);
 
-  for(i = 0; i < teste; i++){
+  for(i = 0; i < tst; i++){
     tmpDir = get_next_dir(tmpDir, *(tokens + i));
     if(tmpDir == NULL) return ERRO;
   }
